@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+ <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #e1bee7);
+      color: #333;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #4a148c;
+      margin-bottom: 30px;
+    }
+    section {
+      background: #ffffffdd;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: transform 0.3s ease;
+    }
+    section:hover {
+      transform: scale(1.01);
+    }
+    h2 {
+      color: #6a1b9a;
+      border-bottom: 2px solid #ba68c8;
+      padding-bottom: 5px;
+      margin-bottom: 15px;
+    }
+    input, button, select {
+      padding: 8px 12px;
+      margin: 5px 4px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    input:focus, button:focus {
+      outline: none;
+      border-color: #ab47bc;
+    }
+    button {
+      background-color: #ab47bc;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #8e24aa;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #6a1b9a;
+      color: white;
+    }
+    @media (max-width: 600px) {
+      section {
+        padding: 15px;
+      }
+      input, button, select {
+        width: 100%;
+        margin-top: 10px;
+      }
+    }
+  </style></head>
+<body>
+  <header>
+    <h1>Admin Dashboard</h1>
+    <button id="logoutBtn">Logout</button>
+  </header>
+
+  <main>
+    <section>
+      <h2>Pending Users</h2>
+      <div id="pendingUsers"></div>
+    </section>
+
+    <section>
+      <h2>Approved / Rejected Users</h2>
+      <div id="allUsers"></div>
+    </section>
+  </main>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
+      authDomain: "vridhi-funds.firebaseapp.com",
+      projectId: "vridhi-funds",
+      storageBucket: "vridhi-funds.appspot.com",
+      messagingSenderId: "925637396313",
+      appId: "1:925637396313:web:ce3911ed3f626f31726e48"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => {
+        window.location.href = "index.html";
+      });
+    });
+
+    function formatTimestamp(timestamp) {
+      if (!timestamp) return '';
+      const date = timestamp.toDate();
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+    }
+
+    function renderPendingUser(id, data) {
+      const div = document.createElement('div');
+      div.className = 'user-box';
+      div.innerHTML = `
+        <p><strong>Email:</strong> ${data.email}</p>
+        <p><strong>Requested At:</strong> ${formatTimestamp(data.createdAt)}</p>
+        <button class="approve-user">Approve as User</button>
+        <button class="approve-manager">Approve as Manager</button>
+        <button class="approve-admin">Approve as Admin</button>
+        <button class="reject">Reject</button>
+      `;
+
+      div.querySelector('.approve-user').onclick = () => approveUser(id, data, "user");
+      div.querySelector('.approve-manager').onclick = () => approveUser(id, data, "manager");
+      div.querySelector('.approve-admin').onclick = () => approveUser(id, data, "admin");
+      div.querySelector('.reject').onclick = () => rejectUser(id, data);
+
+      document.getElementById("pendingUsers").appendChild(div);
+    }
+
+    function renderAllUser(id, data) {
+      const div = document.createElement('div');
+      div.className = 'user-box';
+      div.innerHTML = `
+        <p><strong>Email:</strong> ${data.email}</p>
+        <p>
+          <strong>Role:</strong> <span class="badge role-${data.role}">${data.role}</span>
+          <strong>Status:</strong> <span class="badge status-${data.status}">${data.status}</span>
+        </p>
+        <p><strong>Updated At:</strong> ${formatTimestamp(data.updatedAt)}</p>
+      `;
+      document.getElementById("allUsers").appendChild(div);
+    }
+
+    function approveUser(id, data, role) {
+      db.collection("users").doc(id).set({
+        email: data.email,
+        role: role,
+        status: "approved",
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        db.collection("pendingUsers").doc(id).delete();
+        location.reload();
+      });
+    }
+
+    function rejectUser(id, data) {
+      db.collection("users").doc(id).set({
+        email: data.email,
+        role: "none",
+        status: "rejected",
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        db.collection("pendingUsers").doc(id).delete();
+        location.reload();
+      });
+    }
+
+    function loadDashboard() {
+      db.collection("pendingUsers").get().then(snapshot => {
+        snapshot.forEach(doc => renderPendingUser(doc.id, doc.data()));
+      });
+
+      db.collection("users").orderBy("updatedAt", "desc").get().then(snapshot => {
+        snapshot.forEach(doc => renderAllUser(doc.id, doc.data()));
+      });
+    }
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        db.collection("users").doc(user.uid).get().then(doc => {
+          if (!doc.exists || doc.data().role !== "admin") {
+            alert("Access denied. Admins only.");
+            auth.signOut();
+            window.location.href = "index.html";
+          } else {
+            loadDashboard();
+          }
+        });
+      } else {
+        window.location.href = "index.html";
+      }
+    });
+  </script>
+</body>
+</html>

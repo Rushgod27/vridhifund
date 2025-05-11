@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #e1bee7);
+      color: #333;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #4a148c;
+      margin-bottom: 30px;
+    }
+    section, .card {
+      background: #ffffffdd;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: transform 0.3s ease;
+    }
+    section:hover, .card:hover {
+      transform: scale(1.01);
+    }
+    h2 {
+      color: #6a1b9a;
+      border-bottom: 2px solid #ba68c8;
+      padding-bottom: 5px;
+      margin-bottom: 15px;
+    }
+    input, button, select {
+      padding: 8px 12px;
+      margin: 5px 4px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    input:focus, button:focus {
+      outline: none;
+      border-color: #ab47bc;
+    }
+    button {
+      background-color: #ab47bc;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #8e24aa;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #6a1b9a;
+      color: white;
+    }
+    .pagination {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .pagination button {
+      padding: 8px 16px;
+      margin: 5px;
+    }
+    @media (max-width: 600px) {
+      section, .card {
+        padding: 15px;
+      }
+      input, button, select {
+        width: 100%;
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>User Dashboard</h1>
+
+  <div class="card">
+    <h2>Total Vridhi Funds: ₹<span id="totalFunds">Loading...</span></h2>
+  </div>
+
+  <div class="card">
+    <h2>Loan Eligible Amount: ₹<span id="eligibleAmount">Loading...</span></h2>
+  </div>
+
+  <div class="card">
+    <h2>Apply for Loan</h2>
+    <input type="text" id="loggedInUsername" readonly />
+    <input type="number" id="loanAmount" placeholder="Enter amount" />
+    <select id="loanTenure">
+      <option value="15">15 days</option>
+      <option value="30">30 days</option>
+      <option value="45">45 days</option>
+      <option value="60">60 days</option>
+    </select>
+    <button onclick="applyForLoan()">Apply</button>
+    <p id="loanApplyMessage"></p>
+  </div>
+
+  <div class="card">
+    <h2>Loan History</h2>
+    <div style="margin-bottom: 10px;">
+      <input type="text" id="loanSearch" placeholder="Search by status/date/amount..." oninput="loadLoanHistory()" />
+      <select id="loanSort" onchange="loadLoanHistory()">
+        <option value="date_desc">Newest First</option>
+        <option value="date_asc">Oldest First</option>
+        <option value="amount_asc">Amount Low to High</option>
+        <option value="amount_desc">Amount High to Low</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Amount & Loan ID</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Tenure (Days)</th>
+        </tr>
+      </thead>
+      <tbody id="loanHistoryTable"></tbody>
+    </table>
+    <div class="pagination">
+      <button onclick="prevPage()">Previous</button>
+      <button onclick="nextPage()">Next</button>
+      <p id="paginationInfo"></p>
+    </div>
+<div class="card">
+      <h2>Download Loan History</h2>
+      <button onclick="downloadPDF()">Download PDF</button>
+      <button onclick="downloadExcel()">Download Excel</button>
+      <button onclick="downloadCSV()">Download CSV</button>
+    </div>
+  </div>
+  </div>
+
+<!-- Firebase and Utility Libraries -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
+    authDomain: "vridhi-funds.firebaseapp.com",
+    projectId: "vridhi-funds",
+    storageBucket: "vridhi-funds.firebasestorage.app",
+    messagingSenderId: "925637396313",
+    appId: "1:925637396313:web:ce3911ed3f626f31726e48"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  let currentUser;
+  let loanDataArray = [];
+  let currentPage = 1;
+  const rowsPerPage = 5;
+
+  auth.onAuthStateChanged(async user => {
+    if (!user) {
+      alert("Not logged in");
+      return;
+    }
+    currentUser = user;
+    document.getElementById('loggedInUsername').value = user.email;
+    await loadDashboard();
+  });
+
+  async function loadDashboard() {
+    const usersSnap = await db.collection("users").get();
+    let totalUserBalance = 0;
+    usersSnap.forEach(doc => {
+      totalUserBalance += doc.data().balance || 0;
+    });
+
+    const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
+    let approvedAmount = 0;
+    approvedLoansSnap.forEach(doc => {
+      approvedAmount += doc.data().amount || 0;
+    });
+
+    const recoveriesSnap = await db.collection("recoveries").get();
+    let recovered = 0;
+    recoveriesSnap.forEach(doc => {
+      recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
+    });
+
+    const totalFunds = totalUserBalance - approvedAmount + recovered;
+    document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
+    const eligible = totalFunds * 0.33;
+    document.getElementById("eligibleAmount").textContent = eligible.toFixed(2);
+
+    await fetchLoanHistory();
+  }
+
+  async function applyForLoan() {
+    const amount = parseFloat(document.getElementById("loanAmount").value);
+    const tenure = parseInt(document.getElementById("loanTenure").value);
+    const eligible = parseFloat(document.getElementById("eligibleAmount").textContent);
+    const msg = document.getElementById("loanApplyMessage");
+    msg.textContent = "";
+
+    if (isNaN(amount) || amount <= 0) {
+      msg.textContent = "Invalid amount.";
+      return;
+    }
+    if (amount > eligible) {
+      msg.textContent = `Amount exceeds eligible limit.`;
+      return;
+    }
+
+    const now = new Date();
+
+    await db.collection("loans").add({
+      user: currentUser.email,
+      amount,
+      tenure,
+      status: "pending",
+      timestamp: now,
+      requestDate: now.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true,
+        timeZoneName: "short"
+      })
+    });
+
+    msg.textContent = `Loan request submitted!`;
+    document.getElementById("loanAmount").value = "";
+    await fetchLoanHistory();
+  }
+
+  async function fetchLoanHistory() {
+    const snapshot = await db.collection("loans").where("user", "==", currentUser.email).get();
+    loanDataArray = snapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id
+    }));
+    loadLoanHistory();
+  }
+
+  function loadLoanHistory() {
+    const searchQuery = document.getElementById("loanSearch").value.toLowerCase();
+    const sortValue = document.getElementById("loanSort").value;
+
+    let filtered = loanDataArray.filter(loan =>
+      loan.status.toLowerCase().includes(searchQuery) ||
+      loan.requestDate.toLowerCase().includes(searchQuery) ||
+      loan.amount.toString().includes(searchQuery)
+    );
+
+    switch (sortValue) {
+      case "date_asc":
+        filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        break;
+      case "date_desc":
+        filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        break;
+      case "amount_asc":
+        filtered.sort((a, b) => a.amount - b.amount);
+        break;
+      case "amount_desc":
+        filtered.sort((a, b) => b.amount - a.amount);
+        break;
+    }
+
+    renderLoanHistory(filtered);
+  }
+
+  function renderLoanHistory(filteredData) {
+    const tableBody = document.getElementById("loanHistoryTable");
+    tableBody.innerHTML = "";
+
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const paginated = filteredData.slice(start, end);
+
+    paginated.forEach(data => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${data.amount} - Loan ID: ${data.id}</td>
+        <td>${data.status}</td>
+        <td>${data.requestDate}</td>
+        <td>${data.tenure} days</td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+    document.getElementById("paginationInfo").textContent =
+      `Page ${currentPage} of ${Math.ceil(filteredData.length / rowsPerPage)}`;
+  }
+
+  function prevPage() {
+    if (currentPage > 1) {
+      currentPage--;
+      loadLoanHistory();
+    }
+  }
+
+  function nextPage() {
+    const totalPages = Math.ceil(loanDataArray.length / rowsPerPage);
+    if (currentPage < totalPages) {
+      currentPage++;
+      loadLoanHistory();
+    }
+  }
+
+  function getFilteredData() {
+    const searchQuery = document.getElementById("loanSearch").value.toLowerCase();
+    const sortValue = document.getElementById("loanSort").value;
+
+    let filtered = loanDataArray.filter(loan =>
+      loan.status.toLowerCase().includes(searchQuery) ||
+      loan.requestDate.toLowerCase().includes(searchQuery) ||
+      loan.amount.toString().includes(searchQuery)
+    );
+
+    switch (sortValue) {
+      case "date_asc":
+        filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        break;
+      case "date_desc":
+        filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        break;
+      case "amount_asc":
+        filtered.sort((a, b) => a.amount - b.amount);
+        break;
+      case "amount_desc":
+        filtered.sort((a, b) => b.amount - a.amount);
+        break;
+    }
+
+    return filtered;
+  }
+
+  function downloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text("Loan History", 14, 10);
+    let y = 20;
+
+    const filtered = getFilteredData();
+    filtered.forEach(item => {
+      doc.text(
+        `Amount: ₹${item.amount}, ID: ${item.id}, Status: ${item.status}, Date: ${item.requestDate}, Tenure: ${item.tenure} days`,
+        10, y
+      );
+      y += 10;
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+
+    doc.save("LoanHistory.pdf");
+  }
+
+  function downloadExcel() {
+    const ws = XLSX.utils.json_to_sheet(getFilteredData());
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LoanHistory");
+    XLSX.writeFile(wb, "LoanHistory.xlsx");
+  }
+
+  function downloadCSV() {
+    const filtered = getFilteredData();
+    const headers = ["Amount", "Loan ID", "Status", "Date", "Tenure"];
+    const rows = filtered.map(l => [
+      l.amount, l.id, l.status, l.requestDate, `${l.tenure} days`
+    ]);
+    let csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "LoanHistory.csv";
+    link.click();
+  }
+</script>
+</body>
+</html>

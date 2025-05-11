@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manager Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #e1bee7);
+      color: #333;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #4a148c;
+      margin-bottom: 30px;
+    }
+    section {
+      background: #ffffffdd;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: transform 0.3s ease;
+    }
+    section:hover {
+      transform: scale(1.01);
+    }
+    h2 {
+      color: #6a1b9a;
+      border-bottom: 2px solid #ba68c8;
+      padding-bottom: 5px;
+      margin-bottom: 15px;
+    }
+    input, button, select {
+      padding: 8px 12px;
+      margin: 5px 4px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    input:focus, button:focus {
+      outline: none;
+      border-color: #ab47bc;
+    }
+    button {
+      background-color: #ab47bc;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #8e24aa;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #6a1b9a;
+      color: white;
+    }
+    @media (max-width: 600px) {
+      section {
+        padding: 15px;
+      }
+      input, button, select {
+        width: 100%;
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+<h1>Manager Dashboard</h1>
+
+<section>
+  <h2>Total Vridhi Funds</h2>
+  <p id="vridhiFunds">Calculating...</p>
+</section>
+
+<section>
+  <h2>Loan Eligible Amount</h2>
+  <p id="eligibleAmount">Calculating...</p>
+</section>
+
+<section>
+  <h2>Pending Loan Requests</h2>
+  <div id="pendingRequests">
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Amount</th>
+          <th>Request Date</th>
+          <th>Tenure</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>User Details</h2>
+  <input type="text" id="usernameInput" placeholder="Enter username/email" />
+  <button onclick="searchUser()">Search User</button>
+  <p>Email: <span id="userEmailDisplay">-</span></p>
+  <p>Balance: ₹<span id="userBalanceDisplay">0.00</span></p>
+  <input type="number" id="amountInput" placeholder="Amount" />
+  <button onclick="addToBalance()">Add Amount</button>
+  <button onclick="removeFromBalance()">Remove Amount</button>
+</section>
+
+<section>
+  <h2>Recovered Loan Amount and Fines</h2>
+  <input type="text" id="recoveryEmail" placeholder="User Email" required>
+  <input type="number" id="recoveryAmount" placeholder="Recovered Amount" required>
+  <input type="number" id="fineAmount" placeholder="Fine Amount (optional)">
+  <input type="date" id="recoveryDate" required>
+  <input type="text" id="recoveryNotes" placeholder="Notes (optional)">
+  <button onclick="addRecoveryEntry()">Submit Recovery</button>
+</section>
+
+<section>
+  <h2>Processed Loan Requests</h2>
+  <label for="filterStatus">Filter by Status:</label>
+  <select id="filterStatus">
+    <option value="">All</option>
+    <option value="approved">Approved</option>
+    <option value="rejected">Rejected</option>
+  </select>
+  <label for="filterUser">Filter by User:</label>
+  <input type="text" id="filterUser" placeholder="Search by user" />
+  <label for="filterAmount">Filter by Amount:</label>
+  <input type="number" id="filterAmount" placeholder="Min amount" />
+  <table id="processedRequests">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Status</th>
+        <th>Amount</th>
+        <th>Request Date</th>
+        <th>Tenure</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
+  authDomain: "vridhi-funds.firebaseapp.com",
+  projectId: "vridhi-funds",
+  storageBucket: "vridhi-funds.appspot.com",
+  messagingSenderId: "925637396313",
+  appId: "1:925637396313:web:ce3911ed3f626f31726e48"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+async function updateVridhiFunds() {
+  let totalBalance = 0, totalRecovered = 0, totalApprovedLoans = 0;
+  const users = await db.collection('users').get();
+  users.forEach(doc => totalBalance += doc.data().balance || 0);
+  const recoveries = await db.collection('recoveries').get();
+  recoveries.forEach(doc => totalRecovered += (doc.data().amount || 0) + (doc.data().fine || 0));
+  const loans = await db.collection('loans').where('status', '==', 'approved').get();
+  loans.forEach(doc => totalApprovedLoans += doc.data().amount || 0);
+  const total = totalBalance + totalRecovered - totalApprovedLoans;
+  document.getElementById('vridhiFunds').innerText = `₹${total.toFixed(2)}`;
+  document.getElementById('eligibleAmount').innerText = `₹${(total * 0.33).toFixed(2)}`;
+}
+
+async function searchUser() {
+  const input = document.getElementById('usernameInput').value.trim().toLowerCase();
+  if (!input) return alert("Enter a username or email");
+  const users = await db.collection('users').get();
+  currentUserDoc = null;
+  users.forEach(doc => {
+    const data = doc.data();
+    if (data.email?.toLowerCase() === input || doc.id.toLowerCase() === input) {
+      currentUserDoc = { id: doc.id, ...data };
+    }
+  });
+  if (!currentUserDoc) {
+    document.getElementById('userEmailDisplay').innerText = '-';
+    document.getElementById('userBalanceDisplay').innerText = '0.00';
+    return alert("User not found");
+  }
+  document.getElementById('userEmailDisplay').innerText = currentUserDoc.email || '-';
+  document.getElementById('userBalanceDisplay').innerText = (currentUserDoc.balance || 0).toFixed(2);
+}
+
+async function addToBalance() {
+  if (!currentUserDoc) return alert("Search for a user first");
+  const amount = parseFloat(document.getElementById('amountInput').value);
+  if (isNaN(amount) || amount <= 0) return alert("Enter a valid amount");
+  const newBalance = (currentUserDoc.balance || 0) + amount;
+  await db.collection('users').doc(currentUserDoc.id).update({ balance: newBalance });
+  alert("Amount added!");
+  searchUser();
+  updateVridhiFunds();
+}
+
+async function removeFromBalance() {
+  if (!currentUserDoc) return alert("Search for a user first");
+  const amount = parseFloat(document.getElementById('amountInput').value);
+  if (isNaN(amount) || amount <= 0) return alert("Enter a valid amount");
+  const currentBalance = currentUserDoc.balance || 0;
+  if (amount > currentBalance) return alert("Insufficient balance");
+  const newBalance = currentBalance - amount;
+  await db.collection('users').doc(currentUserDoc.id).update({ balance: newBalance });
+  alert("Amount removed!");
+  searchUser();
+  updateVridhiFunds();
+}
+
+async function addRecoveryEntry() {
+  const email = document.getElementById('recoveryEmail').value.trim();
+  const amount = parseFloat(document.getElementById('recoveryAmount').value);
+  const fine = parseFloat(document.getElementById('fineAmount').value) || 0;
+  const date = document.getElementById('recoveryDate').value;
+  const notes = document.getElementById('recoveryNotes').value.trim();
+  if (!email || isNaN(amount) || !date) return alert("Please fill in email, recovered amount, and date.");
+  await db.collection('recoveries').add({
+    email,
+    amount,
+    fine,
+    date,
+    notes,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  alert("Recovery entry added.");
+  updateVridhiFunds();
+  document.getElementById('recoveryEmail').value = '';
+  document.getElementById('recoveryAmount').value = '';
+  document.getElementById('fineAmount').value = '';
+  document.getElementById('recoveryDate').value = '';
+  document.getElementById('recoveryNotes').value = '';
+}
+
+async function loadPendingLoans() {
+  const tbody = document.getElementById('pendingRequests').querySelector('tbody');
+  tbody.innerHTML = '';
+  const snapshot = await db.collection('loans').where('status', '==', 'pending').get();
+  snapshot.forEach(doc => {
+    const loan = doc.data();
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${loan.user || 'N/A'}</td>
+      <td>${loan.amount}</td>
+      <td>${loan.requestDate || '-'}</td>
+      <td>${loan.tenure || '-'}</td>
+      <td>
+        <button onclick="updateLoanStatus('${doc.id}', 'approved')">Approve</button>
+        <button onclick="updateLoanStatus('${doc.id}', 'rejected')">Reject</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function updateLoanStatus(loanId, newStatus) {
+  await db.collection('loans').doc(loanId).update({ status: newStatus });
+  await updateVridhiFunds();
+  await loadPendingLoans();
+  await loadProcessedLoans();
+}
+
+async function loadProcessedLoans() {
+  const statusFilter = document.getElementById('filterStatus').value;
+  const userFilter = document.getElementById('filterUser').value.toLowerCase();
+  const amountFilter = parseFloat(document.getElementById('filterAmount').value) || 0;
+  const tbody = document.getElementById('processedRequests').querySelector('tbody');
+  tbody.innerHTML = '';
+  const snapshot = await db.collection('loans').get();
+  snapshot.forEach(doc => {
+    const loan = doc.data();
+    if ((statusFilter === '' || loan.status === statusFilter) &&
+        (userFilter === '' || loan.user.toLowerCase().includes(userFilter)) &&
+        (loan.amount >= amountFilter)) {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${loan.user || 'N/A'}</td>
+        <td>${loan.status}</td>
+        <td>${loan.amount}</td>
+        <td>${loan.requestDate || '-'}</td>
+        <td>${loan.tenure || '-'}</td>
+      `;
+      tbody.appendChild(row);
+    }
+  });
+}
+
+document.getElementById('filterStatus').addEventListener('change', loadProcessedLoans);
+document.getElementById('filterUser').addEventListener('input', loadProcessedLoans);
+document.getElementById('filterAmount').addEventListener('input', loadProcessedLoans);
+
+window.onload = async () => {
+  await updateVridhiFunds();
+  await loadProcessedLoans();
+  await loadPendingLoans();
+};
+</script>
+</body>
+</html>

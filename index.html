@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vridhi Funds - Login / Sign Up</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+      color: #3f51b5;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .email-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .email-container input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 4px 0 0 4px;
+      border: 1px solid #ccc;
+      border-right: none;
+    }
+
+    .email-container span {
+      padding: 10px 12px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-left: none;
+      border-radius: 0 4px 4px 0;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: none;
+      background-color: #3f51b5;
+      color: white;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2c3e91;
+    }
+
+    #message {
+      font-weight: bold;
+      text-align: center;
+      color: #555;
+    }
+
+    .form-container {
+      display: none;
+    }
+
+    .form-container.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Vridhi Funds</h2>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="form-container active">
+      <label for="loginEmailPrefix">Email</label>
+      <div class="email-container">
+        <input type="text" id="loginEmailPrefix" placeholder="username" />
+        <span>@vridhi.com</span>
+      </div>
+
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" />
+
+      <button id="loginBtn">Log In</button>
+      <button id="showSignUpBtn">Don't have an account? Sign Up</button>
+
+      <p id="loginMessage"></p>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="signUpForm" class="form-container">
+      <label for="signUpEmailPrefix">Email</label>
+      <div class="email-container">
+        <input type="text" id="signUpEmailPrefix" placeholder="username" />
+        <span>@vridhi.com</span>
+      </div>
+
+      <label for="signUpPassword">Password</label>
+      <input type="password" id="signUpPassword" placeholder="Enter password" />
+
+      <label for="confirmPassword">Confirm Password</label>
+      <input type="password" id="confirmPassword" placeholder="Confirm password" />
+
+      <button id="signUpBtn">Sign Up</button>
+      <button id="showLoginBtn">Already have an account? Log In</button>
+
+      <p id="signUpMessage"></p>
+    </div>
+
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
+      authDomain: "vridhi-funds.firebaseapp.com",
+      projectId: "vridhi-funds",
+      storageBucket: "vridhi-funds.appspot.com",
+      messagingSenderId: "925637396313",
+      appId: "1:925637396313:web:ce3911ed3f626f31726e48"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // DOM elements
+    const loginForm = document.getElementById("loginForm");
+    const signUpForm = document.getElementById("signUpForm");
+    const loginBtn = document.getElementById('loginBtn');
+    const signUpBtn = document.getElementById('signUpBtn');
+    const loginMessage = document.getElementById('loginMessage');
+    const signUpMessage = document.getElementById('signUpMessage');
+    const showSignUpBtn = document.getElementById('showSignUpBtn');
+    const showLoginBtn = document.getElementById('showLoginBtn');
+
+    function getEmail(formPrefixId) {
+      const emailPrefix = document.getElementById(formPrefixId).value.trim();
+      if (!emailPrefix) throw new Error("Username required");
+      return `${emailPrefix}@vridhi.com`;
+    }
+
+    // Sign Up
+    signUpBtn.addEventListener("click", () => {
+      const email = getEmail("signUpEmailPrefix");
+      const password = document.getElementById("signUpPassword").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+
+      if (password !== confirmPassword) {
+        signUpMessage.innerText = "❌ Passwords do not match.";
+        return;
+      }
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          db.collection("pendingUsers").doc(user.uid).set({
+            email: user.email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(() => {
+            signUpMessage.innerText = "✅ Signed up! Awaiting admin approval.";
+            auth.signOut();
+            showLoginForm();
+          });
+        })
+        .catch((error) => {
+          signUpMessage.innerText = "❌ " + error.message;
+        });
+    });
+
+    // Login
+    loginBtn.addEventListener("click", () => {
+      const email = getEmail("loginEmailPrefix");
+      const password = document.getElementById("loginPassword").value;
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+
+          db.collection("users").doc(user.uid).get().then((doc) => {
+            if (doc.exists) {
+              const role = doc.data().role;
+              loginMessage.innerText = `✅ Logged in as ${role}`;
+              if (role === "admin") {
+                window.location.href = "admin.html";
+              } else if (role === "manager") {
+                window.location.href = "manager.html";
+              } else {
+                window.location.href = "user.html";
+              }
+            } else {
+              loginMessage.innerText = "⚠️ Awaiting admin approval.";
+              auth.signOut();
+            }
+          });
+        })
+        .catch((error) => {
+          loginMessage.innerText = "❌ " + error.message;
+        });
+    });
+
+    // Show sign up form
+    showSignUpBtn.addEventListener("click", () => {
+      showSignUpForm();
+    });
+
+    // Show login form
+    showLoginBtn.addEventListener("click", () => {
+      showLoginForm();
+    });
+
+    function showSignUpForm() {
+      loginForm.classList.remove("active");
+      signUpForm.classList.add("active");
+    }
+
+    function showLoginForm() {
+      signUpForm.classList.remove("active");
+      loginForm.classList.add("active");
+    }
+  </script>
+</body>
+</html>
