@@ -101,8 +101,8 @@
   <div class="card">
     <h2>Apply for Loan</h2>
     <input type="text" id="loggedInUsername" readonly />
-    <input type="number" id="loanAmount" placeholder="Enter amount" />
-    <select id="loanTenure">
+    <input type="number" id="loanAmount" placeholder="Enter amount" oninput="updateFinalAmount()" />
+    <select id="loanTenure" onchange="updateFinalAmount()">
       <option value="15">15 days</option>
       <option value="30">30 days</option>
       <option value="45">45 days</option>
@@ -110,6 +110,7 @@
     </select>
     <button onclick="applyForLoan()">Apply</button>
     <p id="loanApplyMessage"></p>
+    <p id="finalAmountMessage" style="color: #4a148c; margin-top: 10px;"></p>
   </div>
 
   <div class="card">
@@ -124,14 +125,23 @@
       </select>
     </div>
     <table>
-      <thead>
-        <tr>
-          <th>Amount & Loan ID</th>
-          <th>Status</th>
-          <th>Date</th>
-          <th>Tenure (Days)</th>
-        </tr>
-      </thead>
+    <thead>
+  <tr>
+    <th>Loan ID</th>
+    <th>Amount</th>
+    <th>Status</th>
+    <th>Loan Request Date</th>
+    <th>Tenure (Days)</th>
+    <th>Loan Approved Date</th>
+    <th>Due Date</th>
+    <th>overdue fine</th> <!-- New -->
+    <th>Total Amount to Repay</th> <!-- New -->
+<th>Take Action</th> <!-- New -->
+
+  </tr>
+</thead>
+
+
       <tbody id="loanHistoryTable"></tbody>
     </table>
     <div class="pagination">
@@ -139,16 +149,14 @@
       <button onclick="nextPage()">Next</button>
       <p id="paginationInfo"></p>
     </div>
-<div class="card">
+    <div class="card">
       <h2>Download Loan History</h2>
       <button onclick="downloadPDF()">Download PDF</button>
       <button onclick="downloadExcel()">Download Excel</button>
       <button onclick="downloadCSV()">Download CSV</button>
     </div>
   </div>
-  </div>
 
-<!-- Firebase and Utility Libraries -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -182,6 +190,7 @@
     currentUser = user;
     document.getElementById('loggedInUsername').value = user.email;
     await loadDashboard();
+    await updateOverdueFinesInFirestore();
   });
 
   async function loadDashboard() {
@@ -192,9 +201,9 @@
     });
 
     const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
-    let approvedAmount = 0;
+    let approvedDistributableAmount = 0;
     approvedLoansSnap.forEach(doc => {
-      approvedAmount += doc.data().amount || 0;
+      approvedDistributableAmount += doc.data().finalCredited || 0;
     });
 
     const recoveriesSnap = await db.collection("recoveries").get();
@@ -203,12 +212,72 @@
       recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
     });
 
-    const totalFunds = totalUserBalance - approvedAmount + recovered;
+    const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
     document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
+
     const eligible = totalFunds * 0.33;
     document.getElementById("eligibleAmount").textContent = eligible.toFixed(2);
 
     await fetchLoanHistory();
+  }
+
+  async function updateOverdueFinesInFirestore() {
+    const loansSnap = await db.collection("loans")
+      .where("user", "==", currentUser.email)
+      .get();
+
+    const now = new Date();
+
+    for (const doc of loansSnap.docs) {
+      const data = doc.data();
+
+      if (data.status !== "approved" || !data.approvalTimestamp) continue;
+
+      const approvalDate = new Date(data.approvalTimestamp.seconds * 1000);
+      const dueDate = new Date(approvalDate);
+      dueDate.setDate(dueDate.getDate() + data.tenure);
+
+      if (now > dueDate) {
+        const overdueDays = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
+        const fine = overdueDays * 50;
+        const totalRepay = (data.finalCredited || 0) + fine;
+
+        if (data.overdueFine !== fine || data.totalRepay !== totalRepay) {
+          await db.collection("loans").doc(doc.id).update({
+            overdueFine: fine,
+            totalRepay: totalRepay
+          });
+        }
+      }
+    }
+
+    await fetchLoanHistory(); // Reload with updated fines
+  }
+
+  function updateFinalAmount() {
+    const amountInput = document.getElementById("loanAmount").value;
+    const tenure = parseInt(document.getElementById("loanTenure").value);
+    const amount = parseFloat(amountInput);
+    const finalMsg = document.getElementById("finalAmountMessage");
+
+    if (!amount || amount <= 0 || isNaN(tenure)) {
+      finalMsg.textContent = "";
+      return;
+    }
+
+    let feePercentage = 0;
+    switch (tenure) {
+      case 15: feePercentage = 0.01; break;
+      case 30: feePercentage = 0.02; break;
+      case 45: feePercentage = 0.03; break;
+      case 60: feePercentage = 0.04; break;
+      default: feePercentage = 0.02;
+    }
+
+    const fee = amount * feePercentage;
+    const finalAmount = amount - fee;
+
+    finalMsg.textContent = `Tenure: ${tenure} days. Fee: ₹${fee.toFixed(2)} (${(feePercentage * 100).toFixed(0)}%). Final credited amount: ₹${finalAmount.toFixed(2)}.`;
   }
 
   async function applyForLoan() {
@@ -227,6 +296,15 @@
       return;
     }
 
+    let feePercentage = 0;
+    switch (tenure) {
+      case 15: feePercentage = 0.01; break;
+      case 30: feePercentage = 0.02; break;
+      case 45: feePercentage = 0.03; break;
+      case 60: feePercentage = 0.04; break;
+    }
+
+    const finalCredited = amount - (amount * feePercentage);
     const now = new Date();
 
     await db.collection("loans").add({
@@ -234,7 +312,7 @@
       amount,
       tenure,
       status: "pending",
-      timestamp: now,
+      finalCredited,
       requestDate: now.toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         year: "numeric",
@@ -248,70 +326,90 @@
       })
     });
 
-    msg.textContent = `Loan request submitted!`;
-    document.getElementById("loanAmount").value = "";
+    msg.textContent = `Loan application submitted for ₹${amount.toFixed(2)}.`;
     await fetchLoanHistory();
   }
 
   async function fetchLoanHistory() {
-    const snapshot = await db.collection("loans").where("user", "==", currentUser.email).get();
-    loanDataArray = snapshot.docs.map(doc => ({
+    const loansSnap = await db.collection("loans").where("user", "==", currentUser.email).get();
+    loanDataArray = loansSnap.docs.map(doc => ({
+      id: doc.id,
       ...doc.data(),
-      id: doc.id
+      timestamp: doc.data().requestDate ? new Date(doc.data().requestDate) : new Date(),
     }));
     loadLoanHistory();
   }
 
   function loadLoanHistory() {
-    const searchQuery = document.getElementById("loanSearch").value.toLowerCase();
-    const sortValue = document.getElementById("loanSort").value;
-
-    let filtered = loanDataArray.filter(loan =>
-      loan.status.toLowerCase().includes(searchQuery) ||
-      loan.requestDate.toLowerCase().includes(searchQuery) ||
-      loan.amount.toString().includes(searchQuery)
+    const filterText = document.getElementById("loanSearch").value.toLowerCase();
+    const sortedData = sortLoans(loanDataArray, document.getElementById("loanSort").value);
+    const filteredData = sortedData.filter(item =>
+      item.status.toLowerCase().includes(filterText) ||
+      item.amount.toString().includes(filterText) ||
+      item.requestDate.toLowerCase().includes(filterText)
     );
+    renderLoanHistory(filteredData);
+  }
 
-    switch (sortValue) {
-      case "date_asc":
-        filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        break;
-      case "date_desc":
-        filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        break;
-      case "amount_asc":
-        filtered.sort((a, b) => a.amount - b.amount);
-        break;
-      case "amount_desc":
-        filtered.sort((a, b) => b.amount - a.amount);
-        break;
+  function sortLoans(data, sortBy) {
+    switch (sortBy) {
+      case 'date_desc': return data.sort((a, b) => b.timestamp - a.timestamp);
+      case 'date_asc': return data.sort((a, b) => a.timestamp - b.timestamp);
+      case 'amount_asc': return data.sort((a, b) => a.amount - b.amount);
+      case 'amount_desc': return data.sort((a, b) => b.amount - a.amount);
+      default: return data;
+    }
+  }
+function renderLoanHistory(filteredData) {
+  const tableBody = document.getElementById("loanHistoryTable");
+  tableBody.innerHTML = "";
+  const start = (currentPage - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+  const paginated = filteredData.slice(start, end);
+
+  paginated.forEach(data => {
+    let approvalDate = data.approvalTimestamp 
+      ? new Date(data.approvalTimestamp.seconds * 1000)
+      : null;
+
+    let dueDate = approvalDate
+      ? new Date(approvalDate.getTime())
+      : new Date(data.timestamp); // fallback to request date if not approved
+
+    dueDate.setDate(dueDate.getDate() + data.tenure);
+
+    // Calculate fine (₹50 per day after due date) only if loan is approved
+    let fine = 0;
+    if (data.status === "approved" && new Date() > dueDate) {
+      const overdueDays = Math.floor((new Date() - dueDate) / (1000 * 60 * 60 * 24));
+      fine = overdueDays * 50;
     }
 
-    renderLoanHistory(filtered);
-  }
+    const totalRepay = data.amount + fine;
 
-  function renderLoanHistory(filteredData) {
-    const tableBody = document.getElementById("loanHistoryTable");
-    tableBody.innerHTML = "";
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${data.id}</td>
+      <td>₹${data.amount.toFixed(2)}</td>
+      <td>${data.status}</td>
+      <td>${data.requestDate}</td>
+      <td>${data.tenure} days</td>
+      <td>${approvalDate ? approvalDate.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "N/A"}</td>
+      <td>${dueDate.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+      <td>${data.status === "approved" ? `₹${fine.toFixed(2)}` : "-"}</td>
+      <td>${data.status === "approved" ? `₹${totalRepay.toFixed(2)}` : "-"}</td>
+      <td>
+        ${data.status === "approved"
+          ? `<button onclick="requestRepayment('${data.id}', ${data.amount}, ${fine})">Repay</button>`
+          : ""}
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
 
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    const paginated = filteredData.slice(start, end);
-
-    paginated.forEach(data => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${data.amount} - Loan ID: ${data.id}</td>
-        <td>${data.status}</td>
-        <td>${data.requestDate}</td>
-        <td>${data.tenure} days</td>
-      `;
-      tableBody.appendChild(row);
-    });
-
-    document.getElementById("paginationInfo").textContent =
-      `Page ${currentPage} of ${Math.ceil(filteredData.length / rowsPerPage)}`;
-  }
+  document.getElementById("paginationInfo").textContent =
+    `Page ${currentPage} of ${Math.ceil(filteredData.length / rowsPerPage)}`;
+}
 
   function prevPage() {
     if (currentPage > 1) {
@@ -328,78 +426,62 @@
     }
   }
 
-  function getFilteredData() {
-    const searchQuery = document.getElementById("loanSearch").value.toLowerCase();
-    const sortValue = document.getElementById("loanSort").value;
-
-    let filtered = loanDataArray.filter(loan =>
-      loan.status.toLowerCase().includes(searchQuery) ||
-      loan.requestDate.toLowerCase().includes(searchQuery) ||
-      loan.amount.toString().includes(searchQuery)
-    );
-
-    switch (sortValue) {
-      case "date_asc":
-        filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        break;
-      case "date_desc":
-        filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        break;
-      case "amount_asc":
-        filtered.sort((a, b) => a.amount - b.amount);
-        break;
-      case "amount_desc":
-        filtered.sort((a, b) => b.amount - a.amount);
-        break;
-    }
-
-    return filtered;
-  }
-
   function downloadPDF() {
-    const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text("Loan History", 14, 10);
-    let y = 20;
-
-    const filtered = getFilteredData();
-    filtered.forEach(item => {
-      doc.text(
-        `Amount: ₹${item.amount}, ID: ${item.id}, Status: ${item.status}, Date: ${item.requestDate}, Tenure: ${item.tenure} days`,
-        10, y
-      );
-      y += 10;
-      if (y > 280) {
-        doc.addPage();
-        y = 20;
-      }
-    });
-
-    doc.save("LoanHistory.pdf");
+    doc.text("Loan History", 20, 10);
+    doc.autoTable({ html: "#loanHistoryTable" });
+    doc.save("loan_history.pdf");
   }
 
   function downloadExcel() {
-    const ws = XLSX.utils.json_to_sheet(getFilteredData());
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "LoanHistory");
-    XLSX.writeFile(wb, "LoanHistory.xlsx");
+    const ws = XLSX.utils.table_to_sheet(document.querySelector("table"));
+    XLSX.utils.book_append_sheet(wb, ws, "Loan History");
+    XLSX.writeFile(wb, "loan_history.xlsx");
   }
 
   function downloadCSV() {
-    const filtered = getFilteredData();
-    const headers = ["Amount", "Loan ID", "Status", "Date", "Tenure"];
-    const rows = filtered.map(l => [
-      l.amount, l.id, l.status, l.requestDate, `${l.tenure} days`
-    ]);
-    let csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(document.querySelector("table"));
+    XLSX.utils.book_append_sheet(wb, ws, "Loan History");
+    const csv = XLSX.utils.sheet_to_csv(ws);
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "LoanHistory.csv";
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    link.download = "loan_history.csv";
     link.click();
   }
+async function requestRepayment(loanId, amount, fine) {
+  if (!confirm(`Confirm repayment request for ₹${amount + fine}?`)) return;
+
+  const now = new Date();
+  try {
+    await db.collection("repaymentRequests").add({
+      loanId,
+      user: currentUser.email,
+      amountPaid: amount,
+      finePaid: fine,
+      totalPaid: amount + fine,
+      status: "pending",
+      requestDate: now.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true,
+        timeZoneName: "short"
+      })
+    });
+    alert("Repayment request sent to manager for confirmation.");
+  } catch (err) {
+    console.error("Repayment request failed:", err);
+    alert("Error sending repayment request.");
+  }
+}
+
 </script>
-</body>
-</html>
+
+
+</body> </html>
