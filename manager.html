@@ -101,18 +101,15 @@
   <h2>Pending Loan Requests</h2>
   <div id="pendingRequests">
     <table>
-     <thead>
-  <tr>
-    <th>Loan ID</th>
-    <th>User</th>
-    <th>Amount</th>
-    <th>Loan Request Date</th>
-    <th>Tenure</th>
-    <th>Distributable Amount</th>
-    <th>Actions</th>
-  </tr>
-</thead>
-
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Amount</th>
+          <th>Request Date</th>
+          <th>Tenure</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
       <tbody></tbody>
     </table>
   </div>
@@ -122,91 +119,48 @@
   <h2>User Details</h2>
   <input type="text" id="usernameInput" placeholder="Enter username/email" />
   <button onclick="searchUser()">Search User</button>
-
-  <!-- Hidden user info section -->
-  <div id="userInfoSection" style="display: none; margin-top: 15px;">
-    <p>Email: <span id="userEmailDisplay">-</span></p>
-    <p>Balance: ₹<span id="userBalanceDisplay">0.00</span></p>
-    <input type="number" id="amountInput" placeholder="Amount" />
-    <button onclick="addToBalance()">Add Amount</button>
-    <button onclick="removeFromBalance()">Remove Amount</button>
-
-    <!-- Loan History Section -->
-    <div id="loanHistory" style="margin-top: 20px;">
-      <h3>Loan History</h3>
-      <table border="1" cellpadding="6">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Tenure</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="loanHistoryBody">
-          <tr><td colspan="4">No records to display</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <p>Email: <span id="userEmailDisplay">-</span></p>
+  <p>Balance: ₹<span id="userBalanceDisplay">0.00</span></p>
+  <input type="number" id="amountInput" placeholder="Amount" />
+  <button onclick="addToBalance()">Add Amount</button>
+  <button onclick="removeFromBalance()">Remove Amount</button>
 </section>
 
 <section>
- <!-- Recovery Section -->
-<div class="section" id="recovered-section">
   <h2>Recovered Loan Amount and Fines</h2>
-  <div class="recovery-inputs">
-    <label for="loanIdInput">Loan ID:</label>
-    <input type="text" id="loanIdInput" placeholder="Enter Loan ID" />
-
-    <button onclick="fetchLoanForRecovery()">Fetch Loan Details</button>
-
-    <p>Loan Amount: ₹<span id="recoveryAmountDisplay">0.00</span></p>
-    <p>Calculated Fine: ₹<span id="fineAmountDisplay">0.00</span></p>
-
-    <label for="recoveryNote">Recovery Note:</label>
-    <input type="text" id="recoveryNote" placeholder="Enter note (optional)" />
-
-    <button onclick="addRecoveryEntry()">Submit Recovery</button>
-  </div>
-
-  <!-- Hidden fields for JS logic -->
-  <input type="hidden" id="recoveryEmail" />
-  <input type="hidden" id="recoveryAmount" />
-  <input type="hidden" id="fineAmount" />
-</div>
+  <input type="text" id="recoveryEmail" placeholder="User Email" required>
+  <input type="number" id="recoveryAmount" placeholder="Recovered Amount" required>
+  <input type="number" id="fineAmount" placeholder="Fine Amount (optional)">
+  <input type="date" id="recoveryDate" required>
+  <input type="text" id="recoveryNotes" placeholder="Notes (optional)">
+  <button onclick="addRecoveryEntry()">Submit Recovery</button>
 </section>
 
 <section>
   <h2>Processed Loan Requests</h2>
   <label for="filterStatus">Filter by Status:</label>
-  <select id="filterStatus" onchange="loadProcessedLoans()">
+  <select id="filterStatus">
     <option value="">All</option>
     <option value="approved">Approved</option>
     <option value="rejected">Rejected</option>
   </select>
   <label for="filterUser">Filter by User:</label>
-  <input type="text" id="filterUser" placeholder="Search by user" oninput="loadProcessedLoans()" />
+  <input type="text" id="filterUser" placeholder="Search by user" />
   <label for="filterAmount">Filter by Amount:</label>
-  <input type="number" id="filterAmount" placeholder="Min amount" oninput="loadProcessedLoans()" />
- <h3>Processed Loan Requests</h3>
-<table id="processed-loan-table">
-  <thead>
-    <tr>
-      <th>Loan ID</th>
-      <th>User</th>
-      <th>Status</th>
-      <th>Amount</th>
-      <th>Request Date</th>
-      <th>Tenure</th>
-      <th>Processed Date</th> <!-- New column -->
-    </tr>
-  </thead>
-  <tbody id="processed-loan-requests"></tbody>
-</table>
-
+  <input type="number" id="filterAmount" placeholder="Min amount" />
+  <table id="processedRequests">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Status</th>
+        <th>Amount</th>
+        <th>Request Date</th>
+        <th>Tenure</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </section>
-
 
 <script>
 const firebaseConfig = {
