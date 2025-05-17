@@ -215,6 +215,11 @@
   position: relative;
 }
  	
+#totalFundsSection {
+  display: none !important;
+}
+
+
 
 </style>
 
@@ -228,18 +233,22 @@
 <h1>User Dashboard</h1>
 <h1><p id="welcomeMessage" style="text-align:center; font-size: 1.2rem; margin-bottom: 30px;"></p></h1>
 
+<div class="card">
+<div class="card" id="totalFundsSection">
+  <h4>Total Vridhi Funds: ₹<span id="totalFunds">Loading...</span></h4>
+</div>
+<div class="card">
+  <h2>My Money</h2>
+  <p>Available Balance: ₹<span id="userBalance">Loading...</span></p>
+</div>
+<div class="card">
+  <h2>Loan Eligible Amount: ₹<span id="eligibleAmount">Loading...</span></h2>
+</div>
+
+</div>
 
 
 
-
-
-  <div class="card">
-    <h4>Total Vridhi Funds: ₹<span id="totalFunds">Loading...</span></h4>
-
-    <h2>Loan Eligible Amount: ₹<span id="eligibleAmount">Loading...</span></h2>
-  </div>
-
-  </div>
 
 
   <div class="card">
@@ -309,31 +318,40 @@
       await loadDashboard();
     });
 
-    async function loadDashboard() {
-      const usersSnap = await db.collection("users").get();
-      let totalUserBalance = 0;
-      usersSnap.forEach(doc => {
-        totalUserBalance += doc.data().balance || 0;
-      });
+  async function loadDashboard() {
+  const usersSnap = await db.collection("users").get();
+  let totalUserBalance = 0;
 
-      const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
-      let approvedDistributableAmount = 0;
-      approvedLoansSnap.forEach(doc => {
-        approvedDistributableAmount += doc.data().finalCredited || 0;
-      });
+  usersSnap.forEach(doc => {
+    totalUserBalance += doc.data().balance || 0;
+  });
 
-      const recoveriesSnap = await db.collection("recoveries").get();
-      let recovered = 0;
-      recoveriesSnap.forEach(doc => {
-        recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
-      });
+  const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
+  let approvedDistributableAmount = 0;
 
-      const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
-      document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
-      document.getElementById("eligibleAmount").textContent = (totalFunds * 0.33).toFixed(2);
+  approvedLoansSnap.forEach(doc => {
+    approvedDistributableAmount += doc.data().finalCredited || 0;
+  });
 
-      await fetchLoanHistory();
-    }
+  const recoveriesSnap = await db.collection("recoveries").get();
+  let recovered = 0;
+
+  recoveriesSnap.forEach(doc => {
+    recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
+  });
+
+  const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
+  document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
+  document.getElementById("eligibleAmount").textContent = (totalFunds * 0.33).toFixed(2);
+
+  // 🔽 NEW: Get logged-in user's balance
+  const userDoc = await db.collection("users").doc(currentUser.uid).get();
+  const userBalance = userDoc.exists ? userDoc.data().balance || 0 : 0;
+  document.getElementById("userBalance").textContent = userBalance.toFixed(2);
+
+  await fetchLoanHistory();
+}
+
 
     async function applyForLoan() {
       const amount = parseFloat(document.getElementById("loanAmount").value);
