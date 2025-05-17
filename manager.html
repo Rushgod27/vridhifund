@@ -3,478 +3,270 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Manager Dashboard</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <title>Vridhi Funds</title>
   <style>
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
       background: #f9f9f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       color: #1d1d1f;
-      padding: 20px;
     }
 
-    .dashboard-section {
+    .container {
       background: white;
+      padding: 40px;
       border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      max-width: 380px;
+      width: 100%;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
     }
 
-    .dashboard-section h2 {
-      font-size: 20px;
-      margin-bottom: 16px;
+    h2 {
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 30px;
+      font-size: 24px;
     }
 
-    .field-group {
+    label {
+      font-size: 14px;
+      margin-bottom: 6px;
+      display: block;
+      font-weight: 500;
+    }
+
+    .email-container {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
 
-    .field-group-row {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+    .email-container input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+      font-size: 16px;
     }
 
-    .field-group input,
-    .field-group button {
+    .email-container span {
+      padding: 12px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+      font-size: 16px;
+      color: #555;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
       padding: 12px;
       font-size: 16px;
       border-radius: 8px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-    }
-
-    .field-group button {
+      border: none;
       background-color: #0071e3;
       color: white;
       font-weight: 600;
-      border: none;
       cursor: pointer;
+      margin-bottom: 12px;
+      transition: background-color 0.2s ease;
     }
 
-    .field-group button:hover {
+    button:hover {
       background-color: #005fc1;
     }
 
-    @media (min-width: 600px) {
-      .field-group-row {
-        flex-direction: row;
-        align-items: center;
-      }
+    .sub-btn {
+      background: transparent;
+      color: #0071e3;
+      font-weight: 500;
+      border: none;
+      text-align: center;
+      padding: 0;
+      margin-top: -6px;
+      margin-bottom: 20px;
+      display: block;
+      cursor: pointer;
+    }
 
-      .field-group-row input {
-        flex: 1;
-      }
+    .sub-btn:hover {
+      text-decoration: underline;
+    }
 
-      .field-group-row button {
-        white-space: nowrap;
-      }
+    #message {
+      text-align: center;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .form-container {
+      display: none;
+    }
+
+    .form-container.active {
+      display: block;
     }
   </style>
-
 </head>
 <body>
-<header class="company-header">	
-  <div class="company-name">Vridhi Funds</div>
-</header>
 
-<h1>Manager Dashboard</h1>
-<h1><p id="welcomeMessage" style="text-align:center; font-size: 1.2rem; margin-bottom: 30px;"></p></h1>
+  <div class="container">
+    <h2>Vridhi Funds</h2>
 
+    <!-- Login Form -->
+    <div id="loginForm" class="form-container active">
+      <label for="loginEmailPrefix">Email</label>
+      <div class="email-container">
+        <input type="text" id="loginEmailPrefix" placeholder="username" />
+        <span>@vridhi.com</span>
+      </div>
 
-<section>
-  <h4>Total Vridhi Funds</h4>
-  <p id="vridhiFunds">Calculating...</p>
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" />
 
-  <h2>Max Limit</h2>
-  <p id="eligibleAmount">Calculating...</p>
-</section>
+      <button id="loginBtn">Log In</button>
+      <button class="sub-btn" id="showSignUpBtn">Don't have an account? Sign Up</button>
 
+      <p id="loginMessage" style="color: #d00;"></p>
+    </div>
 
-<section>
-  <h2>Loan Requests</h2>
-  <div id="pendingRequests"></div>
-</section>
+    <!-- Sign Up Form -->
+    <div id="signUpForm" class="form-container">
+      <label for="signUpEmailPrefix">Email</label>
+      <div class="email-container">
+        <input type="text" id="signUpEmailPrefix" placeholder="username" />
+        <span>@vridhi.com</span>
+      </div>
 
-<section>
-  <h2>Update Recoveries</h2>
-  <div class="card">
-    <input type="text" id="recoveryLoanIdInput" placeholder="Enter Loan ID" />
-    <button onclick="fetchRecoveryAmount()">Fetch Amount</button>
-<input type="number" id="manualRecoveryAmount" placeholder="fetching total amount" readonly />
+      <label for="signUpPassword">Password</label>
+      <input type="password" id="signUpPassword" placeholder="Enter password" />
 
-    <div class="card-actions">
-      <button onclick="submitRecovery()">Submit Recovery</button>
+      <label for="confirmPassword">Confirm Password</label>
+      <input type="password" id="confirmPassword" placeholder="Confirm password" />
+
+      <button id="signUpBtn">Sign Up</button>
+      <button class="sub-btn" id="showLoginBtn">Already have an account? Log In</button>
+
+      <p id="signUpMessage" style="color: #d00;"></p>
     </div>
   </div>
-<section>
-  <h2>Repayment Requests</h2>
-  <div id="repaymentRequests"></div>
-</section>
 
-</section>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
 
-
-<section>
-  <h2>User's balance</h2>
-  <div class="card">
-    <input type="text" id="usernameInput" placeholder="Enter username/email" />
-    <button onclick="searchUser()">Search User</button>
-
-    <div id="userDetailsContainer" style="display: none;">
-      <p><strong>Email:</strong> <span id="userEmailDisplay">-</span></p>
-      <p><strong>Balance:</strong> ₹<span id="userBalanceDisplay">0.00</span></p>
-      <input type="number" id="amountInput" placeholder="Amount" />
-      <div class="card-actions">
-        <button onclick="addToBalance()">Add Amount</button>
-        <button onclick="removeFromBalance()">Remove Amount</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-
-
-<section>
-  <h2>Processed Loan Requests</h2>
-  <label for="filterStatus">Filter by Status:</label>
-  <select id="filterStatus">
-    <option value="">All</option>
-    <option value="approved">Approved</option>
-    <option value="rejected">Rejected</option>
-    <option value="repaid">Repaid</option>
-  </select>
-  <label for="filterUser">Filter by User:</label>
-  <input type="text" id="filterUser" placeholder="Search by user" />
-  <label for="filterAmount">Filter by Amount:</label>
-  <input type="number" id="filterAmount" placeholder="Min amount" />
-  <div id="processedRequests"></div>
-</section>
-
-
-
-
-
-
-<script>
-// Firebase Setup
-const firebaseConfig = {
-  apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
-  authDomain: "vridhi-funds.firebaseapp.com",
-  projectId: "vridhi-funds",
-  storageBucket: "vridhi-funds.appspot.com",
-  messagingSenderId: "925637396313",
-  appId: "1:925637396313:web:ce3911ed3f626f31726e48"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-let currentUserDoc = null;
-
-async function updateVridhiFunds() {
-  let totalBalance = 0, totalRecovered = 0, totalApprovedLoans = 0;
-  const users = await db.collection('users').get();
-  users.forEach(doc => totalBalance += doc.data().balance || 0);
-  const recoveries = await db.collection('recoveries').get();
-  recoveries.forEach(doc => totalRecovered += (doc.data().amount || 0) + (doc.data().fine || 0));
-  const loans = await db.collection('loans').where('status', '==', 'approved').get();
-  loans.forEach(doc => totalApprovedLoans += doc.data().finalCredited || 0);
-  const total = totalBalance + totalRecovered - totalApprovedLoans;
-  document.getElementById('vridhiFunds').innerText = `₹${total.toFixed(2)}`;
-  document.getElementById('eligibleAmount').innerText = `₹${(total * 0.33).toFixed(2)}`;
-}
-
-async function searchUser() {
-  const input = document.getElementById('usernameInput').value.trim().toLowerCase();
-  const userDetailsContainer = document.getElementById('userDetailsContainer');
-
-  userDetailsContainer.style.display = 'none'; // Always hide before search
-  if (!input) return alert("Enter a username or email");
-
-  const users = await db.collection('users').get();
-  currentUserDoc = null;
-
-  users.forEach(doc => {
-    const data = doc.data();
-    if (data.email?.toLowerCase() === input || doc.id.toLowerCase() === input) {
-      currentUserDoc = { id: doc.id, ...data };
-    }
-  });
-
-  if (!currentUserDoc) {
-    document.getElementById('userEmailDisplay').innerText = '-';
-    document.getElementById('userBalanceDisplay').innerText = '0.00';
-    return alert("User not found");
-  }
-
-  document.getElementById('userEmailDisplay').innerText = currentUserDoc.email || '-';
-  document.getElementById('userBalanceDisplay').innerText = (currentUserDoc.balance || 0).toFixed(2);
-  userDetailsContainer.style.display = 'block'; // Show only if user found
-}
-
-async function addToBalance() {
-  if (!currentUserDoc) return alert("Search for a user first");
-  const amount = parseFloat(document.getElementById('amountInput').value);
-  if (isNaN(amount) || amount <= 0) return alert("Enter a valid amount");
-  const newBalance = (currentUserDoc.balance || 0) + amount;
-  await db.collection('users').doc(currentUserDoc.id).update({ balance: newBalance });
-  alert("Amount added!");
-  searchUser();
-  updateVridhiFunds();
-}
-
-async function removeFromBalance() {
-  if (!currentUserDoc) return alert("Search for a user first");
-  const amount = parseFloat(document.getElementById('amountInput').value);
-  if (isNaN(amount) || amount <= 0) return alert("Enter a valid amount");
-  const currentBalance = currentUserDoc.balance || 0;
-  if (amount > currentBalance) return alert("Insufficient balance");
-  const newBalance = currentBalance - amount;
-  await db.collection('users').doc(currentUserDoc.id).update({ balance: newBalance });
-  alert("Amount removed!");
-  searchUser();
-  updateVridhiFunds();
-}
-async function loadPendingLoans() {
-  const container = document.getElementById('pendingRequests');
-  container.innerHTML = '';
-  const snapshot = await db.collection('loans').where('status', '==', 'pending').get();
-  snapshot.forEach(doc => {
-    const loan = doc.data();
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <p><strong>User:</strong> ${loan.user || 'N/A'}</p>
-      <p><strong>Amount:</strong> ₹${loan.amount}</p>
-      <p><strong>Final Credit:</strong> ₹${loan.finalCredited}</p>
-      <p><strong>Request Date:</strong> ${loan.requestDate || '-'}</p>
-      <p><strong>Tenure:</strong> ${loan.tenure || '-'}</p>
-      <div class="card-actions">
-        <button onclick="updateLoanStatus('${doc.id}', 'approved')">Approve</button>
-        <button onclick="updateLoanStatus('${doc.id}', 'rejected')">Reject</button>
-      </div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-async function updateLoanStatus(loanId, newStatus) {
-  const confirmed = confirm(`Are you sure you want to ${newStatus} this loan?`);
-  if (!confirmed) return;
-  await db.collection('loans').doc(loanId).update({
-    status: newStatus,
-    loanProcessedDate: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  alert(`Loan ${newStatus} and date recorded.`);
-  await updateVridhiFunds();
-  await loadPendingLoans();
-  await loadProcessedLoans();
-}
-
-async function loadProcessedLoans() {
-  const statusFilter = document.getElementById('filterStatus').value;
-  const userFilter = document.getElementById('filterUser').value.toLowerCase();
-  const amountFilter = parseFloat(document.getElementById('filterAmount').value) || 0;
-  const container = document.getElementById('processedRequests');
-  container.innerHTML = '';
- const snapshot = await db.collection('loans').orderBy('loanProcessedDate', 'desc').get();
-snapshot.forEach(doc => {
-  const loan = doc.data();
-    if ((statusFilter === '' || loan.status === statusFilter) &&
-        (userFilter === '' || loan.user.toLowerCase().includes(userFilter)) &&
-        (loan.amount >= amountFilter)) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      let statusSeal = '';
-if (loan.status === 'approved') {
-  statusSeal = `<div class="status-seal">APPROVED</div>`;
-} else if (loan.status === 'rejected') {
-  statusSeal = `<div class="status-seal rejected">REJECTED</div>`;
-} else if (loan.status === 'repaid') {
-  statusSeal = `<div class="status-seal repaid">REPAID</div>`;
-}
-
-card.innerHTML = `
-  <p><strong>User:</strong> ${loan.user || 'N/A'}</p>
-  ${statusSeal}
-  <p><strong>Status:</strong> ${loan.status}</p>
-  <p><strong>Amount:</strong> ₹${loan.amount}</p>
-  <p><strong>Request Date:</strong> ${loan.requestDate || '-'}</p>
-  <p><strong>Tenure:</strong> ${loan.tenure || '-'}</p>
-  <p><strong>Processed Date:</strong> ${loan.loanProcessedDate?.toDate?.().toLocaleString() || '-'}</p>
-`;
-
-      container.appendChild(card);
-    }
-  });
-}
-
-document.getElementById('filterStatus').addEventListener('change', loadProcessedLoans);
-document.getElementById('filterUser').addEventListener('input', loadProcessedLoans);
-document.getElementById('filterAmount').addEventListener('input', loadProcessedLoans);
-
-async function loadRepaymentRequests() {
-  const container = document.querySelector('#repaymentRequests');
-  container.innerHTML = '';
-  const snapshot = await db.collection('repaymentRequests').where('status', '==', 'pending').get();
-  snapshot.forEach(doc => {
-    const request = doc.data();
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <p><strong>User:</strong> ${request.user || 'N/A'}</p>
-      <p><strong>Loan ID:</strong> ${request.loanId || '-'} 
-         <button onclick="copyToClipboard('${request.loanId}')">Copy</button>
-      </p>
-      <p><strong>Date:</strong> ${request.requestDate || '-'}</p>
-      <div class="card-actions">
-        <button onclick="approveRepaymentRequest('${doc.id}', '${request.loanId}')">Confirm</button>
-        <button onclick="rejectRepaymentRequest('${doc.id}')">Reject</button>
-      </div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-async function approveRepaymentRequest(requestId, loanId) {
-  if (!confirm("Are you sure you want to approve this repayment?")) return;
-  await db.collection('repaymentRequests').doc(requestId).update({ status: 'approved' });
-  await db.collection('loans').doc(loanId).update({ status: 'repaid' });
-  alert("Repayment approved and loan marked as repaid.");
-  await loadRepaymentRequests();
-  await loadProcessedLoans();
-  await updateVridhiFunds();
-}
-
-async function rejectRepaymentRequest(requestId) {
-  if (!confirm("Are you sure you want to reject this repayment?")) return;
-  await db.collection('repaymentRequests').doc(requestId).update({ status: 'rejected' });
-  alert("Repayment request rejected.");
-  await loadRepaymentRequests();
-}
-
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    alert("Copied to clipboard");
-  });
-}
-
-window.onload = async () => {
-  await updateVridhiFunds();
-  await loadProcessedLoans();
-  await loadPendingLoans();
-  await loadRepaymentRequests();
-};
-let currentLoanForRecovery = null;
-
-let currentRepaymentRequest = null;
-
-async function fetchRecoveryAmount() {
-  const loanId = document.getElementById('recoveryLoanIdInput').value.trim();
-  if (!loanId) {
-    alert("Please enter a Loan ID.");
-    return;
-  }
-
-  try {
-    const snapshot = await db.collection('repaymentRequests')
-      .where('loanId', '==', loanId)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-   
-      document.getElementById('manualRecoveryAmount').value = '';
-      currentRepaymentRequest = null;
-      alert("No repayment request found for this Loan ID.");
-      return;
-    }
-
-    const doc = snapshot.docs[0];
-    const data = doc.data();
-    const totalPaid = data.totalPaid || 0;
-
-    currentRepaymentRequest = {
-      docId: doc.id,
-      loanId: data.loanId,
-      user: data.user || 'unknown',
-      totalPaid: totalPaid
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
+      authDomain: "vridhi-funds.firebaseapp.com",
+      projectId: "vridhi-funds",
+      storageBucket: "vridhi-funds.appspot.com",
+      messagingSenderId: "925637396313",
+      appId: "1:925637396313:web:ce3911ed3f626f31726e48"
     };
 
-    
-    document.getElementById('manualRecoveryAmount').value = totalPaid.toFixed(2); // 👈 Autofill this
-  } catch (error) {
-   
-    alert("Failed to fetch repayment request.");
-  }
-}
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-async function submitRecovery() {
-  if (!currentRepaymentRequest) {
-    alert("Please fetch a Loan ID first.");
-    return;
-  }
+    const loginForm = document.getElementById("loginForm");
+    const signUpForm = document.getElementById("signUpForm");
+    const loginBtn = document.getElementById('loginBtn');
+    const signUpBtn = document.getElementById('signUpBtn');
+    const loginMessage = document.getElementById('loginMessage');
+    const signUpMessage = document.getElementById('signUpMessage');
+    const showSignUpBtn = document.getElementById('showSignUpBtn');
+    const showLoginBtn = document.getElementById('showLoginBtn');
 
-  const manualInput = parseFloat(document.getElementById('manualRecoveryAmount').value);
-  const recoveryAmount = isNaN(manualInput) ? currentRepaymentRequest.totalPaid : manualInput;
-
-  try {
-    // Step 1: Check if recovery already exists
-    const existingRecoverySnapshot = await db.collection('recoveries')
-      .where('loanId', '==', currentRepaymentRequest.loanId)
-      .where('source', '==', 'repaymentRequest')
-      .limit(1)
-      .get();
-
-    if (!existingRecoverySnapshot.empty) {
-      alert("Recovery for this loan has already been recorded.");
-      return;
+    function getEmail(prefixId) {
+      const prefix = document.getElementById(prefixId).value.trim();
+      if (!prefix) throw new Error("Username required");
+      return `${prefix}@vridhi.com`;
     }
 
-    // Step 2: Add new recovery if it doesn't exist
-    await db.collection('recoveries').add({
-      loanId: currentRepaymentRequest.loanId,
-      user: currentRepaymentRequest.user,
-      amount: recoveryAmount,
-      fine: 0,
-      source: 'repaymentRequest',
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    loginBtn.addEventListener("click", () => {
+      const email = getEmail("loginEmailPrefix");
+      const password = document.getElementById("loginPassword").value;
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          db.collection("users").doc(user.uid).get().then((doc) => {
+            if (doc.exists) {
+              const role = doc.data().role;
+              if (role === "admin") {
+                window.location.href = "admin.html";
+              } else if (role === "manager") {
+                window.location.href = "manager.html";
+              } else {
+                window.location.href = "user.html";
+              }
+            } else {
+              loginMessage.innerText = "⚠️ Awaiting admin approval.";
+              auth.signOut();
+            }
+          });
+        })
+        .catch((error) => {
+          loginMessage.innerText = "❌ " + error.message;
+        });
     });
 
-    alert("Recovery recorded successfully.");
-    document.getElementById('recoveryLoanIdInput').value = '';
-    document.getElementById('manualRecoveryAmount').value = '';
-    currentRepaymentRequest = null;
+    signUpBtn.addEventListener("click", () => {
+      const email = getEmail("signUpEmailPrefix");
+      const password = document.getElementById("signUpPassword").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
 
-    await updateVridhiFunds();
-  } catch (error) {
-    console.error("Error submitting recovery:", error);
-    alert("Failed to submit recovery.");
-  }
-}
-firebase.auth().onAuthStateChanged(async (user) => {
-  if (user) {
-    const email = user.email;
-    const username = email.split('@')[0]; // Get the part before '@'
-    document.getElementById('welcomeMessage').innerText = `Welcome, ${username}`;
-  } else {
-    document.getElementById('welcomeMessage').innerText = 'Welcome, Guest';
-  }
-});
-	
-</script>
-<footer class="company-footer">
-  <p>&copy; 2025 Vridhi Fund. All rights reserved.</p>
-</footer>
+      if (password !== confirmPassword) {
+        signUpMessage.innerText = "❌ Passwords do not match.";
+        return;
+      }
 
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          db.collection("pendingUsers").doc(user.uid).set({
+            email: user.email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(() => {
+            signUpMessage.innerText = "✅ Signed up! Awaiting admin approval.";
+            auth.signOut();
+            showLoginForm();
+          });
+        })
+        .catch((error) => {
+          signUpMessage.innerText = "❌ " + error.message;
+        });
+    });
+
+    showSignUpBtn.addEventListener("click", showSignUpForm);
+    showLoginBtn.addEventListener("click", showLoginForm);
+
+    function showSignUpForm() {
+      loginForm.classList.remove("active");
+      signUpForm.classList.add("active");
+    }
+
+    function showLoginForm() {
+      signUpForm.classList.remove("active");
+      loginForm.classList.add("active");
+    }
+  </script>
 </body>
 </html>
