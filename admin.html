@@ -203,7 +203,14 @@
           <strong>Role:</strong> <span class="badge role-${data.role}">${data.role}</span>
           <strong>Status:</strong> <span class="badge status-${data.status}">${data.status}</span>
         </p>
+        <p><strong>Blocked:</strong> ${data.isBlocked ? "Yes" : "No"}</p>
         <p><strong>Updated At:</strong> ${formatTimestamp(data.updatedAt)}</p>
+        <button onclick="changeUserRole('${id}', 'user')">Set as User</button>
+        <button onclick="changeUserRole('${id}', 'manager')">Set as Manager</button>
+        <button onclick="changeUserRole('${id}', 'admin')">Set as Admin</button>
+        <button onclick="toggleBlock('${id}', ${!data.isBlocked})" style="background:${data.isBlocked ? '#34c759' : '#ff3b30'};">
+          ${data.isBlocked ? 'Unblock' : 'Block'}
+        </button>
       `;
       document.getElementById("allUsers").appendChild(div);
     }
@@ -213,6 +220,7 @@
         email: data.email,
         role: role,
         status: "approved",
+        isBlocked: false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).then(() => {
         db.collection("pendingUsers").doc(id).delete();
@@ -225,9 +233,30 @@
         email: data.email,
         role: "none",
         status: "rejected",
+        isBlocked: true,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).then(() => {
         db.collection("pendingUsers").doc(id).delete();
+        location.reload();
+      });
+    }
+
+    function changeUserRole(userId, newRole) {
+      db.collection("users").doc(userId).update({
+        role: newRole,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        alert("Role updated");
+        location.reload();
+      });
+    }
+
+    function toggleBlock(userId, shouldBlock) {
+      db.collection("users").doc(userId).update({
+        isBlocked: shouldBlock,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        alert(shouldBlock ? "User blocked" : "User unblocked");
         location.reload();
       });
     }
@@ -245,8 +274,9 @@
     auth.onAuthStateChanged(user => {
       if (user) {
         db.collection("users").doc(user.uid).get().then(doc => {
-          if (!doc.exists || doc.data().role !== "admin") {
-            alert("Access denied. Admins only.");
+          const userData = doc.data();
+          if (!doc.exists || userData.status === "rejected" || userData.isBlocked || userData.role !== "admin") {
+            alert("Access denied! contact admin.");
             auth.signOut();
             window.location.href = "index.html";
           } else {
