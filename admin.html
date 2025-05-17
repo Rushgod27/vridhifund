@@ -4,85 +4,132 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Dashboard</title>
- <style>
+  <style>
     body {
       margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to right, #e0f7fa, #e1bee7);
-      color: #333;
-      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
     }
-    h1 {
-      text-align: center;
-      color: #4a148c;
+
+    header {
+      width: 100%;
+      text-align: right;
+      max-width: 900px;
       margin-bottom: 30px;
     }
-    section {
-      background: #ffffffdd;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin-bottom: 20px;
-      transition: transform 0.3s ease;
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 40px;
+      color: #1d1d1f;
     }
-    section:hover {
-      transform: scale(1.01);
-    }
-    h2 {
-      color: #6a1b9a;
-      border-bottom: 2px solid #ba68c8;
-      padding-bottom: 5px;
-      margin-bottom: 15px;
-    }
-    input, button, select {
-      padding: 8px 12px;
-      margin: 5px 4px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+
+    #logoutBtn {
+      background: none;
+      border: none;
+      color: #0071e3;
       font-size: 14px;
-    }
-    input:focus, button:focus {
-      outline: none;
-      border-color: #ab47bc;
-    }
-    button {
-      background-color: #ab47bc;
-      color: white;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      padding: 10px 15px;
+      border-radius: 6px;
     }
-    button:hover {
-      background-color: #8e24aa;
+
+    #logoutBtn:hover {
+      text-decoration: underline;
     }
-    table {
+
+    main {
       width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
+      max-width: 900px;
     }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 10px;
-      text-align: left;
+
+    section {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+      padding: 30px;
+      margin-bottom: 30px;
     }
-    th {
-      background-color: #6a1b9a;
+
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 10px;
+      color: #333;
+    }
+
+    .user-box {
+      border-bottom: 1px solid #eaeaea;
+      padding: 15px 0;
+    }
+
+    .user-box:last-child {
+      border-bottom: none;
+    }
+
+    p {
+      margin: 5px 0;
+    }
+
+    button {
+      background-color: #0071e3;
       color: white;
+      border: none;
+      padding: 10px 16px;
+      margin: 5px 5px 0 0;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.3s ease;
     }
+
+    button:hover {
+      background-color: #005bb5;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #fff;
+      margin-left: 5px;
+    }
+
+    .role-admin { background: #1d1d1f; }
+    .role-manager { background: #0071e3; }
+    .role-user { background: #34c759; }
+    .role-none { background: #aaa; }
+
+    .status-approved { background: #34c759; }
+    .status-rejected { background: #ff3b30; }
+
     @media (max-width: 600px) {
       section {
-        padding: 15px;
+        padding: 20px;
       }
-      input, button, select {
+      button {
         width: 100%;
-        margin-top: 10px;
+        margin-bottom: 10px;
       }
     }
-  </style></head>
+  </style>
+</head>
 <body>
   <header>
-    <h1>Admin Dashboard</h1>
     <button id="logoutBtn">Logout</button>
   </header>
+
+  <h1>Admin Dashboard</h1>
 
   <main>
     <section>
@@ -136,7 +183,7 @@
         <button class="approve-user">Approve as User</button>
         <button class="approve-manager">Approve as Manager</button>
         <button class="approve-admin">Approve as Admin</button>
-        <button class="reject">Reject</button>
+        <button class="reject" style="background:#ff3b30;">Reject</button>
       `;
 
       div.querySelector('.approve-user').onclick = () => approveUser(id, data, "user");
