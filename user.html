@@ -4,99 +4,243 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>User Dashboard</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to right, #e0f7fa, #e1bee7);
-      color: #333;
-      padding: 20px;
+ <style>
+  /* Global Reset & Base */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+    padding: 20px;
+    line-height: 1.6;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2.8rem;
+    font-weight: 600;
+    margin-bottom: 40px;
+    color: #1d1d1f;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 10px;
+  }
+
+  section {
+    background-color: #fff;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  section:hover {
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  input, select, button {
+    font-size: 1rem;
+    padding: 12px 16px;
+    margin: 10px 0;
+    border: 1px solid #d2d2d7;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 400px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background-color: #fff;
+  }
+
+  input:focus, select:focus {
+    border-color: #0071e3;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+    outline: none;
+  }
+
+  button {
+    background-color: #0071e3;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border: none;
+  }
+
+  button:hover {
+    background-color: #005bb5;
+  }
+
+  .card {
+    background-color: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+  }
+
+  .card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .card-actions button {
+    flex: 1 1 48%;
+  }
+.loan-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+.loan-card {
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 24px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 16px 12px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  th {
+    background-color: #fafafa;
+    color: #1d1d1f;
+    font-weight: 500;
+  }
+
+  td {
+    color: #3c3c43;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    section {
+      padding: 24px;
     }
-    h1 {
-      text-align: center;
-      color: #4a148c;
-      margin-bottom: 30px;
-    }
-    section, .card {
-      background: #ffffffdd;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin-bottom: 20px;
-      transition: transform 0.3s ease;
-    }
-    section:hover, .card:hover {
-      transform: scale(1.01);
-    }
-    h2 {
-      color: #6a1b9a;
-      border-bottom: 2px solid #ba68c8;
-      padding-bottom: 5px;
-      margin-bottom: 15px;
-    }
+
     input, button, select {
-      padding: 8px 12px;
-      margin: 5px 4px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 14px;
-    }
-    input:focus, button:focus {
-      outline: none;
-      border-color: #ab47bc;
-    }
-    button {
-      background-color: #ab47bc;
-      color: white;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    button:hover {
-      background-color: #8e24aa;
-    }
-    table {
       width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
     }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 10px;
-      text-align: left;
+
+    .card-actions {
+      flex-direction: column;
     }
-    th {
-      background-color: #6a1b9a;
-      color: white;
-    }
-    .pagination {
-      margin-top: 20px;
-      text-align: center;
-    }
-    .pagination button {
-      padding: 8px 16px;
-      margin: 5px;
-    }
-    @media (max-width: 600px) {
-      section, .card {
-        padding: 15px;
-      }
-      input, button, select {
-        width: 100%;
-        margin-top: 10px;
-      }
-    }
-  </style>
+  }
+.company-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  background-color: #0071e3;
+  color: white;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.company-header .logo {
+  height: 50px;
+  margin-right: 16px;
+}
+
+.company-header .company-name {
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.company-footer {
+  margin-top: 60px;
+  padding: 20px;
+  text-align: center;
+  background-color: #f1f1f1;
+  color: #6c757d;
+  font-size: 0.95rem;
+  border-radius: 12px;
+}
+.loan-seal {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+}
+
+.seal-approved {
+  background-color: #28a745;
+}
+
+.seal-repaid {
+  background-color: #007bff;
+}
+
+.seal-rejected {
+  background-color: #dc3545;
+}
+
+.seal-pending {
+  background-color: #ffc107;
+}
+
+.loan-card {
+  position: relative;
+}
+ 	
+
+</style>
+
+
 </head>
 <body>
-  <h1>User Dashboard</h1>
+ <header class="company-header">	
+  <div class="company-name">Vridhi Funds</div>
+</header>
+
+<h1>User Dashboard</h1>
+<h1><p id="welcomeMessage" style="text-align:center; font-size: 1.2rem; margin-bottom: 30px;"></p></h1>
+
+
+
+
+
 
   <div class="card">
-    <h2>Total Vridhi Funds: ₹<span id="totalFunds">Loading...</span></h2>
-  </div>
+    <h4>Total Vridhi Funds: ₹<span id="totalFunds">Loading...</span></h4>
 
-  <div class="card">
     <h2>Loan Eligible Amount: ₹<span id="eligibleAmount">Loading...</span></h2>
   </div>
+
+  </div>
+
 
   <div class="card">
     <h2>Apply for Loan</h2>
@@ -124,364 +268,283 @@
         <option value="amount_desc">Amount High to Low</option>
       </select>
     </div>
-    <table>
-    <thead>
-  <tr>
-    <th>Loan ID</th>
-    <th>Amount</th>
-    <th>Status</th>
-    <th>Loan Request Date</th>
-    <th>Tenure (Days)</th>
-    <th>Loan Approved Date</th>
-    <th>Due Date</th>
-    <th>overdue fine</th> <!-- New -->
-    <th>Total Amount to Repay</th> <!-- New -->
-<th>Take Action</th> <!-- New -->
-
-  </tr>
-</thead>
+    <div id="loanHistoryCards" class="loan-cards-container"></div>
+     </div>
 
 
-      <tbody id="loanHistoryTable"></tbody>
-    </table>
-    <div class="pagination">
-      <button onclick="prevPage()">Previous</button>
-      <button onclick="nextPage()">Next</button>
-      <p id="paginationInfo"></p>
-    </div>
-    <div class="card">
-      <h2>Download Loan History</h2>
-      <button onclick="downloadPDF()">Download PDF</button>
-      <button onclick="downloadExcel()">Download Excel</button>
-      <button onclick="downloadCSV()">Download CSV</button>
-    </div>
-  </div>
+  <!-- Firebase & Libraries -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Core Script -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
+      authDomain: "vridhi-funds.firebaseapp.com",
+      projectId: "vridhi-funds",
+      storageBucket: "vridhi-funds.appspot.com",
+      messagingSenderId: "925637396313",
+      appId: "1:925637396313:web:ce3911ed3f626f31726e48"
+    };
 
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyD_APjfMpyaTsK1F3w9VbJA_ujT666oklM",
-    authDomain: "vridhi-funds.firebaseapp.com",
-    projectId: "vridhi-funds",
-    storageBucket: "vridhi-funds.firebasestorage.app",
-    messagingSenderId: "925637396313",
-    appId: "1:925637396313:web:ce3911ed3f626f31726e48"
-  };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
+    let currentUser, loanDataArray = [];
+    let currentPage = 1;
+    const rowsPerPage = 5;
 
-  let currentUser;
-  let loanDataArray = [];
-  let currentPage = 1;
-  const rowsPerPage = 5;
-
-  auth.onAuthStateChanged(async user => {
-    if (!user) {
-      alert("Not logged in");
-      return;
-    }
-    currentUser = user;
-    document.getElementById('loggedInUsername').value = user.email;
-    await loadDashboard();
-    await updateOverdueFinesInFirestore();
-  });
-
-  async function loadDashboard() {
-    const usersSnap = await db.collection("users").get();
-    let totalUserBalance = 0;
-    usersSnap.forEach(doc => {
-      totalUserBalance += doc.data().balance || 0;
-    });
-
-    const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
-    let approvedDistributableAmount = 0;
-    approvedLoansSnap.forEach(doc => {
-      approvedDistributableAmount += doc.data().finalCredited || 0;
-    });
-
-    const recoveriesSnap = await db.collection("recoveries").get();
-    let recovered = 0;
-    recoveriesSnap.forEach(doc => {
-      recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
-    });
-
-    const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
-    document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
-
-    const eligible = totalFunds * 0.33;
-    document.getElementById("eligibleAmount").textContent = eligible.toFixed(2);
-
-    await fetchLoanHistory();
-  }
-
-  async function updateOverdueFinesInFirestore() {
-    const loansSnap = await db.collection("loans")
-      .where("user", "==", currentUser.email)
-      .get();
-
-    const now = new Date();
-
-    for (const doc of loansSnap.docs) {
-      const data = doc.data();
-
-      if (data.status !== "approved" || !data.approvalTimestamp) continue;
-
-      const approvalDate = new Date(data.approvalTimestamp.seconds * 1000);
-      const dueDate = new Date(approvalDate);
-      dueDate.setDate(dueDate.getDate() + data.tenure);
-
-      if (now > dueDate) {
-        const overdueDays = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
-        const fine = overdueDays * 50;
-        const totalRepay = (data.finalCredited || 0) + fine;
-
-        if (data.overdueFine !== fine || data.totalRepay !== totalRepay) {
-          await db.collection("loans").doc(doc.id).update({
-            overdueFine: fine,
-            totalRepay: totalRepay
-          });
-        }
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        alert("Not logged in.");
+        return;
       }
-    }
-
-    await fetchLoanHistory(); // Reload with updated fines
-  }
-
-  function updateFinalAmount() {
-    const amountInput = document.getElementById("loanAmount").value;
-    const tenure = parseInt(document.getElementById("loanTenure").value);
-    const amount = parseFloat(amountInput);
-    const finalMsg = document.getElementById("finalAmountMessage");
-
-    if (!amount || amount <= 0 || isNaN(tenure)) {
-      finalMsg.textContent = "";
-      return;
-    }
-
-    let feePercentage = 0;
-    switch (tenure) {
-      case 15: feePercentage = 0.01; break;
-      case 30: feePercentage = 0.02; break;
-      case 45: feePercentage = 0.03; break;
-      case 60: feePercentage = 0.04; break;
-      default: feePercentage = 0.02;
-    }
-
-    const fee = amount * feePercentage;
-    const finalAmount = amount - fee;
-
-    finalMsg.textContent = `Tenure: ${tenure} days. Fee: ₹${fee.toFixed(2)} (${(feePercentage * 100).toFixed(0)}%). Final credited amount: ₹${finalAmount.toFixed(2)}.`;
-  }
-
-  async function applyForLoan() {
-    const amount = parseFloat(document.getElementById("loanAmount").value);
-    const tenure = parseInt(document.getElementById("loanTenure").value);
-    const eligible = parseFloat(document.getElementById("eligibleAmount").textContent);
-    const msg = document.getElementById("loanApplyMessage");
-    msg.textContent = "";
-
-    if (isNaN(amount) || amount <= 0) {
-      msg.textContent = "Invalid amount.";
-      return;
-    }
-    if (amount > eligible) {
-      msg.textContent = `Amount exceeds eligible limit.`;
-      return;
-    }
-
-    let feePercentage = 0;
-    switch (tenure) {
-      case 15: feePercentage = 0.01; break;
-      case 30: feePercentage = 0.02; break;
-      case 45: feePercentage = 0.03; break;
-      case 60: feePercentage = 0.04; break;
-    }
-
-    const finalCredited = amount - (amount * feePercentage);
-    const now = new Date();
-
-    await db.collection("loans").add({
-      user: currentUser.email,
-      amount,
-      tenure,
-      status: "pending",
-      finalCredited,
-      requestDate: now.toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        second: "numeric",
-        hour12: true,
-        timeZoneName: "short"
-      })
+      currentUser = user;
+      document.getElementById('loggedInUsername').value = user.email;
+      await loadDashboard();
     });
 
-    msg.textContent = `Loan application submitted for ₹${amount.toFixed(2)}.`;
-    await fetchLoanHistory();
-  }
+    async function loadDashboard() {
+      const usersSnap = await db.collection("users").get();
+      let totalUserBalance = 0;
+      usersSnap.forEach(doc => {
+        totalUserBalance += doc.data().balance || 0;
+      });
 
-  async function fetchLoanHistory() {
-    const loansSnap = await db.collection("loans").where("user", "==", currentUser.email).get();
-    loanDataArray = loansSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      timestamp: doc.data().requestDate ? new Date(doc.data().requestDate) : new Date(),
-    }));
-    loadLoanHistory();
-  }
+      const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
+      let approvedDistributableAmount = 0;
+      approvedLoansSnap.forEach(doc => {
+        approvedDistributableAmount += doc.data().finalCredited || 0;
+      });
 
-  function loadLoanHistory() {
-    const filterText = document.getElementById("loanSearch").value.toLowerCase();
-    const sortedData = sortLoans(loanDataArray, document.getElementById("loanSort").value);
-    const filteredData = sortedData.filter(item =>
-      item.status.toLowerCase().includes(filterText) ||
-      item.amount.toString().includes(filterText) ||
-      item.requestDate.toLowerCase().includes(filterText)
-    );
-    renderLoanHistory(filteredData);
-  }
+      const recoveriesSnap = await db.collection("recoveries").get();
+      let recovered = 0;
+      recoveriesSnap.forEach(doc => {
+        recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
+      });
 
-  function sortLoans(data, sortBy) {
-    switch (sortBy) {
-      case 'date_desc': return data.sort((a, b) => b.timestamp - a.timestamp);
-      case 'date_asc': return data.sort((a, b) => a.timestamp - b.timestamp);
-      case 'amount_asc': return data.sort((a, b) => a.amount - b.amount);
-      case 'amount_desc': return data.sort((a, b) => b.amount - a.amount);
-      default: return data;
-    }
-  }
-function renderLoanHistory(filteredData) {
-  const tableBody = document.getElementById("loanHistoryTable");
-  tableBody.innerHTML = "";
-  const start = (currentPage - 1) * rowsPerPage;
-  const end = start + rowsPerPage;
-  const paginated = filteredData.slice(start, end);
+      const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
+      document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
+      document.getElementById("eligibleAmount").textContent = (totalFunds * 0.33).toFixed(2);
 
-  paginated.forEach(data => {
-    let approvalDate = data.approvalTimestamp 
-      ? new Date(data.approvalTimestamp.seconds * 1000)
-      : null;
-
-    let dueDate = approvalDate
-      ? new Date(approvalDate.getTime())
-      : new Date(data.timestamp); // fallback to request date if not approved
-
-    dueDate.setDate(dueDate.getDate() + data.tenure);
-
-    // Calculate fine (₹50 per day after due date) only if loan is approved
-    let fine = 0;
-    if (data.status === "approved" && new Date() > dueDate) {
-      const overdueDays = Math.floor((new Date() - dueDate) / (1000 * 60 * 60 * 24));
-      fine = overdueDays * 50;
+      await fetchLoanHistory();
     }
 
-    const totalRepay = data.amount + fine;
+    async function applyForLoan() {
+      const amount = parseFloat(document.getElementById("loanAmount").value);
+      const tenure = parseInt(document.getElementById("loanTenure").value);
+      const eligible = parseFloat(document.getElementById("eligibleAmount").textContent);
+      const msg = document.getElementById("loanApplyMessage");
+      msg.textContent = "";
 
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${data.id}</td>
-      <td>₹${data.amount.toFixed(2)}</td>
-      <td>${data.status}</td>
-      <td>${data.requestDate}</td>
-      <td>${data.tenure} days</td>
-      <td>${approvalDate ? approvalDate.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "N/A"}</td>
-      <td>${dueDate.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-      <td>${data.status === "approved" ? `₹${fine.toFixed(2)}` : "-"}</td>
-      <td>${data.status === "approved" ? `₹${totalRepay.toFixed(2)}` : "-"}</td>
-      <td>
-        ${data.status === "approved"
-          ? `<button onclick="requestRepayment('${data.id}', ${data.amount}, ${fine})">Repay</button>`
-          : ""}
-      </td>
-    `;
-    tableBody.appendChild(row);
-  });
+      if (isNaN(amount) || amount <= 0) {
+        msg.textContent = "Invalid amount.";
+        return;
+      }
+      if (amount > eligible) {
+        msg.textContent = `Amount exceeds eligible limit.`;
+        return;
+      }
 
-  document.getElementById("paginationInfo").textContent =
-    `Page ${currentPage} of ${Math.ceil(filteredData.length / rowsPerPage)}`;
-}
+      const feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
+      const finalCredited = amount - (amount * feePercentage);
 
-  function prevPage() {
-    if (currentPage > 1) {
-      currentPage--;
+      const now = new Date();
+      await db.collection("loans").add({
+        user: currentUser.email,
+        amount,
+        tenure,
+        status: "pending",
+        finalCredited,
+        requestDate: now.toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric", month: "long", day: "numeric",
+          hour: "numeric", minute: "numeric", second: "numeric",
+          hour12: true, timeZoneName: "short"
+        })
+      });
+
+      msg.textContent = `Loan application submitted for ₹${amount.toFixed(2)}.`;
+      await fetchLoanHistory();
+    }
+
+    function updateFinalAmount() {
+      const amount = parseFloat(document.getElementById("loanAmount").value);
+      const tenure = parseInt(document.getElementById("loanTenure").value);
+      const msg = document.getElementById("finalAmountMessage");
+
+      if (!amount || amount <= 0 || isNaN(tenure)) {
+        msg.textContent = "";
+        return;
+      }
+
+      const feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
+      const fee = amount * feePercentage;
+      const finalAmount = amount - fee;
+
+      msg.textContent = `Tenure: ${tenure} days. Fee: ₹${fee.toFixed(2)} (${(feePercentage * 100)}%). Final credited amount: ₹${finalAmount.toFixed(2)}.`;
+    }
+
+    async function fetchLoanHistory() {
+      const loansSnap = await db.collection("loans").where("user", "==", currentUser.email).get();
+      loanDataArray = loansSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: new Date(doc.data().approvalTimestamp?.seconds * 1000 || Date.now())
+      }));
       loadLoanHistory();
     }
-  }
 
-  function nextPage() {
-    const totalPages = Math.ceil(loanDataArray.length / rowsPerPage);
-    if (currentPage < totalPages) {
-      currentPage++;
-      loadLoanHistory();
+    function loadLoanHistory() {
+      const search = document.getElementById("loanSearch").value.toLowerCase();
+      const sort = document.getElementById("loanSort").value;
+      const sorted = sortLoans(loanDataArray, sort);
+      const filtered = sorted.filter(l =>
+        l.status.toLowerCase().includes(search) ||
+        l.amount.toString().includes(search) ||
+        l.requestDate?.toLowerCase().includes(search)
+      );
+      renderLoanHistory(filtered);
     }
-  }
 
-  function downloadPDF() {
-    const doc = new jsPDF();
-    doc.text("Loan History", 20, 10);
-    doc.autoTable({ html: "#loanHistoryTable" });
-    doc.save("loan_history.pdf");
-  }
+    function sortLoans(data, sortBy) {
+      return [...data].sort((a, b) => {
+        if (sortBy === 'date_desc') return b.timestamp - a.timestamp;
+        if (sortBy === 'date_asc') return a.timestamp - b.timestamp;
+        if (sortBy === 'amount_asc') return a.amount - b.amount;
+        if (sortBy === 'amount_desc') return b.amount - a.amount;
+        return 0;
+      });
+    }
 
-  function downloadExcel() {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(document.querySelector("table"));
-    XLSX.utils.book_append_sheet(wb, ws, "Loan History");
-    XLSX.writeFile(wb, "loan_history.xlsx");
-  }
+    function renderLoanHistory(data) {
+      const container = document.getElementById("loanHistoryCards");
+      container.innerHTML = "";
 
-  function downloadCSV() {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(document.querySelector("table"));
-    XLSX.utils.book_append_sheet(wb, ws, "Loan History");
-    const csv = XLSX.utils.sheet_to_csv(ws);
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    link.download = "loan_history.csv";
-    link.click();
-  }
-async function requestRepayment(loanId, amount, fine) {
-  if (!confirm(`Confirm repayment request for ₹${amount + fine}?`)) return;
+      const start = (currentPage - 1) * rowsPerPage;
+      const paginated = data.slice(start, start + rowsPerPage);
 
-  const now = new Date();
-  try {
-    await db.collection("repaymentRequests").add({
-      loanId,
-      user: currentUser.email,
-      amountPaid: amount,
-      finePaid: fine,
-      totalPaid: amount + fine,
-      status: "pending",
-      requestDate: now.toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        second: "numeric",
-        hour12: true,
-        timeZoneName: "short"
-      })
-    });
-    alert("Repayment request sent to manager for confirmation.");
-  } catch (err) {
-    console.error("Repayment request failed:", err);
-    alert("Error sending repayment request.");
-  }
+      paginated.forEach(item => {
+        const approvalDate = item.loanProcessedDate
+          ? new Date(item.loanProcessedDate.seconds * 1000)
+          : null;
+
+        const dueDate = approvalDate
+          ? new Date(approvalDate.getTime())
+          : new Date(item.timestamp);
+        dueDate.setDate(dueDate.getDate() + item.tenure);
+
+        let fine = 0;
+        const now = new Date();
+
+        if ((item.status === "approved" || item.status === "repaid") && dueDate < now) {
+          const endDate = item.status === "repaid"
+            ? new Date(item.repaidDate?.seconds * 1000 || now)
+            : now;
+          const overdueDays = Math.max(0, Math.floor((endDate - dueDate) / (1000 * 60 * 60 * 24)));
+          fine = overdueDays * 50;
+        }
+
+        const totalRepay = item.totalRepay || (item.amount + fine);
+        const showActionButton = item.status === "approved";
+        const isRepaid = item.status === "repaid";
+        const isUnderReview = item.status === "underReview";
+
+        const card = document.createElement("div");
+        card.className = "loan-card";
+    let sealClass = "";
+let sealText = "";
+
+if (item.status === "approved") {
+  sealClass = "seal-approved";
+  sealText = "Approved";
+} else if (item.status === "repaid") {
+  sealClass = "seal-repaid";
+  sealText = "Repaid";
+} else if (item.status === "rejected") {
+  sealClass = "seal-rejected";
+  sealText = "Rejected";
+} else if (item.status === "pending" || item.status === "underReview") {
+  sealClass = "seal-pending";
+  sealText = item.status === "pending" ? "Pending" : "Under Review";
 }
 
+card.innerHTML = `
+  <div class="loan-seal ${sealClass}">${sealText}</div>
+  <h3>Loan ID: ${item.id}</h3>
+  <p><strong>Amount:</strong> ₹${item.amount.toFixed(2)}</p>
+  <p><strong>Status:</strong> ${item.status}</p>
+  <p><strong>Request Date:</strong> ${item.requestDate}</p>
+  <p><strong>Tenure:</strong> ${item.tenure} days</p>
+  <p><strong>Approved Date:</strong> ${approvalDate ? approvalDate.toLocaleString("en-IN") : "N/A"}</p>
+  <p><strong>Due Date:</strong> ${dueDate.toLocaleString("en-IN")}</p>
+  <p><strong>Overdue Fine:</strong> ₹${fine.toFixed(2)}</p>
+  <p><strong>Total to Repay:</strong> ₹${totalRepay.toFixed(2)}</p>
+  ${showActionButton
+    ? `<button onclick="requestRepayment('${item.id}', ${item.amount}, ${fine})">Repay</button>`
+    : isRepaid
+      ? `<span style="color: green;">Repaid</span>`
+      : isUnderReview
+        ? `<span style="color: orange;">Under Review</span>`
+        : ""}
+`;
+
+        container.appendChild(card);
+      });
+
+      document.getElementById("paginationInfo").textContent =
+        `Page ${currentPage} of ${Math.ceil(data.length / rowsPerPage)}`;
+    }
+
+ 
+    async function requestRepayment(loanId, amount, fine) {
+      if (!confirm(`Confirm repayment request for ₹${amount + fine}?`)) return;
+
+      const now = new Date();
+
+      await db.collection("repaymentRequests").add({
+        loanId,
+        user: currentUser.email,
+        amountPaid: amount,
+        finePaid: fine,
+        totalPaid: amount + fine,
+        status: "pending",
+        requestDate: now.toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric", month: "long", day: "numeric",
+          hour: "numeric", minute: "numeric", second: "numeric",
+          hour12: true, timeZoneName: "short"
+        })
+      });
+
+      const loan = loanDataArray.find(l => l.id === loanId);
+      if (loan) {
+        loan.status = "underReview";
+      }
+
+      loadLoanHistory();
+      alert("Repayment request sent to manager for confirmation.");
+    }
+  firebase.auth().onAuthStateChanged(async (user) => {
+  if (user) {
+    const email = user.email;
+    const username = email.split('@')[0]; // Get the part before '@'
+    document.getElementById('welcomeMessage').innerText = `Welcome, ${username}`;
+  } else {
+    document.getElementById('welcomeMessage').innerText = 'Welcome, Guest';
+  }
+});
+	
 </script>
+<footer class="company-footer">
+  <p>&copy; 2025 Vridhi Fund. All rights reserved.</p>
+</footer>
 
+</body>
+</html>
 
-</body> </html>
