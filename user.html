@@ -245,29 +245,45 @@
   <h2>Loan Eligible Amount: ₹<span id="eligibleAmount">Loading...</span></h2>
 </div>
 
+</div><div class="card">
+  <h2>My V-Points</h2>
+  <p>Your total V-Points: <strong id="vPointsDisplay">Calculating...</strong></p>
+  <p style="font-size: 0.95rem; color: #666;">Earn points by repaying on time, early repayments, and more.</p>
 </div>
 
 
 
 
 
-  <div class="card">
-    <h2>Apply for Loan</h2>
-    <input type="text" id="loggedInUsername" readonly />
-    <input type="number" id="loanAmount" placeholder="Enter amount" oninput="updateFinalAmount()" />
-    <select id="loanTenure" onchange="updateFinalAmount()">
-      <option value="15">15 days</option>
-      <option value="30">30 days</option>
-      <option value="45">45 days</option>
-      <option value="60">60 days</option>
-    </select>
-    <button onclick="applyForLoan()">Apply</button>
-    <p id="loanApplyMessage"></p>
-    <p id="finalAmountMessage" style="color: #4a148c; margin-top: 10px;"></p>
-  </div>
+
+<div class="card" id="loanApplicationSection">
+  <h2>Apply for Loan</h2>
+  <input type="text" id="loggedInUsername" readonly />
+  <input type="number" id="loanAmount" placeholder="Enter amount" oninput="updateFinalAmount()" />
+
+  <!-- 🆕 Loan Tag Dropdown -->
+  <select id="loanTag">
+    <option value="" disabled selected>Select Loan Tag</option>
+    <option value="Flexi Loan Fund">Flexi Loan Fund</option>
+    <option value="Emergency Assistance Fund">Emergency Assistance Fund</option>
+    <option value="Family Support Fund">Family Support Fund</option>
+  </select>
+
+  <select id="loanTenure" onchange="updateFinalAmount()">
+    <option value="15">15 days</option>
+    <option value="30">30 days</option>
+    <option value="45">45 days</option>
+    <option value="60">60 days</option>
+  </select>
+
+  <button onclick="applyForLoan()">Apply</button>
+  <p id="loanApplyMessage"></p>
+  <p id="finalAmountMessage" style="color: #4a148c; margin-top: 10px;"></p>
+</div>
 
   <div class="card">
-    <h2>Loan History</h2>
+<div id="loader" style="text-align:center; display:none; font-size: 1rem; color: #555;">Loading data...</div>
+ <h2>Loan History</h2>
     <div style="margin-bottom: 10px;">
       <input type="text" id="loanSearch" placeholder="Search by status/date/amount..." oninput="loadLoanHistory()" />
       <select id="loanSort" onchange="loadLoanHistory()">
@@ -318,7 +334,7 @@
       await loadDashboard();
     });
 
-  async function loadDashboard() {
+ async function loadDashboard() {
   const usersSnap = await db.collection("users").get();
   let totalUserBalance = 0;
 
@@ -342,54 +358,95 @@
 
   const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
   document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
-  document.getElementById("eligibleAmount").textContent = (totalFunds * 0.33).toFixed(2);
 
-  // 🔽 NEW: Get logged-in user's balance
-  const userDoc = await db.collection("users").doc(currentUser.uid).get();
-  const userBalance = userDoc.exists ? userDoc.data().balance || 0 : 0;
-  document.getElementById("userBalance").textContent = userBalance.toFixed(2);
+  const flexiLoanFund = totalFunds * 0.75;
+  const maxLoanEligibility = flexiLoanFund * 0.40;
 
-  await fetchLoanHistory();
+  document.getElementById("eligibleAmount").textContent = maxLoanEligibility.toFixed(2);
+
+   // 🔁 Real-time user balance update
+  db.collection("users").doc(currentUser.uid).onSnapshot(doc => {
+    const userBalance = doc.exists ? doc.data().balance || 0 : 0;
+    document.getElementById("userBalance").textContent = userBalance.toFixed(2);
+  });
+
+  fetchLoanHistory(); // Triggers loan listener
 }
 
 
-    async function applyForLoan() {
-      const amount = parseFloat(document.getElementById("loanAmount").value);
-      const tenure = parseInt(document.getElementById("loanTenure").value);
-      const eligible = parseFloat(document.getElementById("eligibleAmount").textContent);
-      const msg = document.getElementById("loanApplyMessage");
-      msg.textContent = "";
 
-      if (isNaN(amount) || amount <= 0) {
-        msg.textContent = "Invalid amount.";
-        return;
-      }
-      if (amount > eligible) {
-        msg.textContent = `Amount exceeds eligible limit.`;
-        return;
-      }
+async function applyForLoan() {
+  const msg = document.getElementById("loanApplyMessage");
+  msg.textContent = "";
 
-      const feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
-      const finalCredited = amount - (amount * feePercentage);
+  const hasActiveLoan = loanDataArray.some(loan =>
+    loan.status !== "repaid" && loan.status !== "rejected"
+  );
+  if (hasActiveLoan) {
+    msg.textContent = "You must clear or wait for decision on existing loans before applying for a new one.";
+    return;
+  }
 
-      const now = new Date();
-      await db.collection("loans").add({
-        user: currentUser.email,
-        amount,
-        tenure,
-        status: "pending",
-        finalCredited,
-        requestDate: now.toLocaleString("en-IN", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric", month: "long", day: "numeric",
-          hour: "numeric", minute: "numeric", second: "numeric",
-          hour12: true, timeZoneName: "short"
-        })
-      });
+  const amount = parseFloat(document.getElementById("loanAmount").value);
+  const tenure = parseInt(document.getElementById("loanTenure").value);
+  const tag = document.getElementById("loanTag").value; // 🆕 Get tag value
+  const eligible = parseFloat(document.getElementById("eligibleAmount").textContent);
 
-      msg.textContent = `Loan application submitted for ₹${amount.toFixed(2)}.`;
-      await fetchLoanHistory();
-    }
+  if (!tag) {
+    msg.textContent = "Please select a loan tag."; // 🆕 Validate tag
+    return;
+  }
+
+  if (isNaN(amount) || amount <= 0) {
+    msg.textContent = "Invalid amount.";
+    return;
+  }
+
+  if (amount < 3000) {
+    msg.textContent = "Minimum loan amount is ₹3000.";
+    return;
+  }
+
+  if (amount > eligible) {
+    msg.textContent = `Amount exceeds eligible limit.`;
+    return;
+  }
+
+  const feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
+  const finalCredited = amount - (amount * feePercentage);
+
+  const now = new Date();
+  const requestDate = now.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric", month: "long", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric",
+    hour12: true, timeZoneName: "short"
+  });
+
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const randomNumber = Math.floor(100000 + Math.random() * 900000);
+
+  const customLoanId = `VRIDHI_${dd}${mm}${yy}_${randomNumber}`;
+
+  await db.collection("loans").doc(customLoanId).set({
+    user: currentUser.email,
+    amount,
+    tenure,
+    tag, // 🆕 Save tag to Firestore
+    status: "pending",
+    finalCredited,
+    requestDate
+  });
+
+  msg.textContent = `Loan application submitted with ID: ${customLoanId}`;
+
+  document.getElementById("loanAmount").value = "";
+  document.getElementById("loanTenure").selectedIndex = 0;
+  document.getElementById("loanTag").selectedIndex = 0; // 🆕 Reset tag dropdown
+  updateFinalAmount();
+}
 
     function updateFinalAmount() {
       const amount = parseFloat(document.getElementById("loanAmount").value);
@@ -407,17 +464,32 @@
 
       msg.textContent = `Tenure: ${tenure} days. Fee: ₹${fee.toFixed(2)} (${(feePercentage * 100)}%). Final credited amount: ₹${finalAmount.toFixed(2)}.`;
     }
+async function fetchLoanHistory() {
+  document.getElementById("loader").style.display = "block";
 
-    async function fetchLoanHistory() {
-      const loansSnap = await db.collection("loans").where("user", "==", currentUser.email).get();
-      loanDataArray = loansSnap.docs.map(doc => ({
+  db.collection("loans").where("user", "==", currentUser.email)
+    .onSnapshot(snapshot => {
+      loanDataArray = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         timestamp: new Date(doc.data().approvalTimestamp?.seconds * 1000 || Date.now())
       }));
-      loadLoanHistory();
-    }
 
+      // Show or hide loan application section
+      const hasActiveLoan = loanDataArray.some(loan =>
+        loan.status !== "repaid" && loan.status !== "rejected"
+      );
+
+      const loanAppSection = document.getElementById("loanApplicationSection");
+      if (loanAppSection) {
+        loanAppSection.style.display = hasActiveLoan ? "none" : "block";
+      }
+
+      loadLoanHistory();
+      document.getElementById("loader").style.display = "none";
+
+    });
+}
     function loadLoanHistory() {
       const search = document.getElementById("loanSearch").value.toLowerCase();
       const sort = document.getElementById("loanSort").value;
@@ -428,6 +500,8 @@
         l.requestDate?.toLowerCase().includes(search)
       );
       renderLoanHistory(filtered);
+  // ✅ Calculate points after rendering is complete
+  calculateVPoints();
     }
 
     function sortLoans(data, sortBy) {
@@ -496,6 +570,8 @@ card.innerHTML = `
   <div class="loan-seal ${sealClass}">${sealText}</div>
   <h3>Loan ID: ${item.id}</h3>
   <p><strong>Amount:</strong> ₹${item.amount.toFixed(2)}</p>
+<p><strong>Tag:</strong> ${item.tag || 'N/A'}</p>
+
   <p><strong>Status:</strong> ${item.status}</p>
   <p><strong>Request Date:</strong> ${item.requestDate}</p>
   <p><strong>Tenure:</strong> ${item.tenure} days</p>
@@ -557,7 +633,51 @@ card.innerHTML = `
     document.getElementById('welcomeMessage').innerText = 'Welcome, Guest';
   }
 });
-	
+  const WEIGHTS = {
+  repaidOnTime: 50,
+  earlyRepaymentBonus: 30,
+  repaidLate: -25,
+  activeLoan: 10,
+  rejectedLoan: -10,
+  repaymentPending: -5
+};
+function calculateVPoints() {
+  let points = 0;
+
+  loanDataArray.forEach(loan => {
+    const status = loan.status;
+    const approvedDate = loan.loanProcessedDate
+      ? new Date(loan.loanProcessedDate.seconds * 1000)
+      : null;
+    const repaidDate = loan.repaidDate
+      ? new Date(loan.repaidDate.seconds * 1000)
+      : null;
+    const dueDate = approvedDate ? new Date(approvedDate) : null;
+    if (dueDate && loan.tenure) dueDate.setDate(dueDate.getDate() + loan.tenure);
+
+    if (status === "repaid") {
+      if (repaidDate && dueDate) {
+        if (repaidDate < dueDate) {
+          points += WEIGHTS.earlyRepaymentBonus;
+        } else if (repaidDate.getTime() === dueDate.getTime()) {
+          points += WEIGHTS.repaidOnTime;
+        } else {
+          points += WEIGHTS.repaidLate;
+        }
+      }
+    } else if (status === "approved") {
+      points += WEIGHTS.activeLoan;
+    } else if (status === "rejected") {
+      points += WEIGHTS.rejectedLoan;
+    } else if (status === "underReview") {
+      points += WEIGHTS.repaymentPending;
+    }
+  });
+
+  document.getElementById("vPointsDisplay").textContent = `${points} V-Points`;
+}
+
+
 </script>
 <footer class="company-footer">
   <p>&copy; 2025 Vridhi Fund. All rights reserved.</p>
