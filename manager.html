@@ -198,6 +198,17 @@ td {
     flex-direction: column;
   }
 }
+.tag-badge {
+  display: inline-block;
+  background-color: #ffcc00;
+  color: #1d1d1f;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
 </style>
 </head>
 <body>
@@ -208,13 +219,23 @@ td {
 <h1>Manager Dashboard</h1>
 <h1><p id="welcomeMessage" style="text-align:center; font-size: 1.2rem; margin-bottom: 30px;"></p></h1>
 
-
 <section>
-  <h4>Total Vridhi Funds</h4>
-  <p id="vridhiFunds">Calculating...</p>
 
-  <h2>Max Limit</h2>
-  <p id="eligibleAmount">Calculating...</p>
+  <h2>Total Vridhi Funds
+  <p id="vridhiFunds">Calculating...</p></h2>
+<h2>Fund Distribution</h2>
+  <ul style="list-style: none; padding-left: 0;">
+    <li><strong>Flexi Loan Fund :</strong> ₹<span id="flexiLoanFund">-</span></li>
+    <li><strong>Emergency Assistance Fund :</strong> ₹<span id="emergencyFund">-</span></li>
+    <li><strong>Family Support Fund :</strong> ₹<span id="familySupportFund">-</span></li>
+    <li><strong>Operational Expenses :</strong> ₹<span id="operationalExpenses">-</span></li>
+    <li><strong>Loyalty Bonus Pool :</strong> ₹<span id="loyaltyBonus">-</span></li>
+  </ul>
+<br>
+<section>
+ <h2>Flexi Max Limit
+  <p id="eligibleAmount">Calculating...</p></h2>
+</section>
 </section>
 
 
@@ -265,6 +286,8 @@ td {
 
 <section>
   <h2>Processed Loan Requests</h2>
+ <button onclick="window.location.href='research_report.html'" style="max-width: 200px;">View Research Report</button>
+  </div>
   <label for="filterStatus">Filter by Status:</label>
   <select id="filterStatus">
     <option value="">All</option>
@@ -302,13 +325,25 @@ async function updateVridhiFunds() {
   let totalBalance = 0, totalRecovered = 0, totalApprovedLoans = 0;
   const users = await db.collection('users').get();
   users.forEach(doc => totalBalance += doc.data().balance || 0);
+
   const recoveries = await db.collection('recoveries').get();
   recoveries.forEach(doc => totalRecovered += (doc.data().amount || 0) + (doc.data().fine || 0));
+
   const loans = await db.collection('loans').where('status', '==', 'approved').get();
   loans.forEach(doc => totalApprovedLoans += doc.data().finalCredited || 0);
+
   const total = totalBalance + totalRecovered - totalApprovedLoans;
+
   document.getElementById('vridhiFunds').innerText = `₹${total.toFixed(2)}`;
-  document.getElementById('eligibleAmount').innerText = `₹${(total * 0.33).toFixed(2)}`;
+
+  const flexiLoanFund = total * 0.75;
+  document.getElementById('eligibleAmount').innerText = `₹${(flexiLoanFund * 0.4).toFixed(2)}`;
+
+  document.getElementById('flexiLoanFund').innerText = flexiLoanFund.toFixed(2);
+  document.getElementById('emergencyFund').innerText = (total * 0.10).toFixed(2);
+  document.getElementById('familySupportFund').innerText = (total * 0.05).toFixed(2);
+  document.getElementById('operationalExpenses').innerText = (total * 0.08).toFixed(2);
+  document.getElementById('loyaltyBonus').innerText = (total * 0.02).toFixed(2);
 }
 
 async function searchUser() {
@@ -372,6 +407,7 @@ async function loadPendingLoans() {
     card.className = 'card';
     card.innerHTML = `
       <p><strong>User:</strong> ${loan.user || 'N/A'}</p>
+<p><strong>Tag:</strong> <span class="tag-badge">${loan.tag || 'N/A'}</span></p>
       <p><strong>Amount:</strong> ₹${loan.amount}</p>
       <p><strong>Final Credit:</strong> ₹${loan.finalCredited}</p>
       <p><strong>Request Date:</strong> ${loan.requestDate || '-'}</p>
@@ -426,6 +462,7 @@ card.innerHTML = `
   ${statusSeal}
   <p><strong>Status:</strong> ${loan.status}</p>
   <p><strong>Amount:</strong> ₹${loan.amount}</p>
+<p><strong>Tag:</strong> <span class="tag-badge">${loan.tag || 'N/A'}</span></p>
   <p><strong>Request Date:</strong> ${loan.requestDate || '-'}</p>
   <p><strong>Tenure:</strong> ${loan.tenure || '-'}</p>
   <p><strong>Processed Date:</strong> ${loan.loanProcessedDate?.toDate?.().toLocaleString() || '-'}</p>
@@ -589,6 +626,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
   }
 });
 	
+
 </script>
 <footer class="company-footer">
   <p>&copy; 2025 Vridhi Fund. All rights reserved.</p>
