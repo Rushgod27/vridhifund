@@ -400,8 +400,21 @@ async function loadDashboard() {
   }
 }
 
-
 async function applyForLoan() {
+  const amount = parseFloat(document.getElementById("loanAmount").value);
+  const tag = document.getElementById("loanTag").value;
+  const tenure = document.getElementById("loanTenure")?.value || "N/A";
+
+  if (!tag || isNaN(amount) || amount <= 0) {
+    alert("Please enter a valid amount and select a loan tag.");
+    return;
+  }
+
+  // Show confirmation popup
+  const confirmMessage = `Are you sure you want to apply for a loan?\n\nTag: ${tag}\nAmount: ₹${amount}\n`;
+  const confirmApply = confirm(confirmMessage);
+  if (!confirmApply) return;
+
   const msg = document.getElementById("loanApplyMessage");
   msg.textContent = "";
 
@@ -413,43 +426,25 @@ async function applyForLoan() {
     return;
   }
 
-  const amount = parseFloat(document.getElementById("loanAmount").value);
-  let tenure = parseInt(document.getElementById("loanTenure").value); // May not be used
-  const tag = document.getElementById("loanTag").value;
+  let finalCredited = amount;
+  let feePercentage = 0;
+
+  if (tag === "Flexi Loan Fund") {
+    const parsedTenure = parseInt(tenure);
+    feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[parsedTenure];
+    finalCredited = amount - (amount * feePercentage);
+  }
+
   const eligible = parseFloat(document.getElementById("eligibleAmount").textContent);
-
-  if (!tag) {
-    msg.textContent = "Please select a loan tag.";
-    return;
-  }
-
-  if (isNaN(amount) || amount <= 0) {
-    msg.textContent = "Invalid amount.";
-    return;
-  }
-
-  // Validation for Flexi Loan Fund
   if (tag === "Flexi Loan Fund") {
     if (amount < 3000) {
       msg.textContent = "Minimum loan amount for Flexi Loan Fund is ₹3000.";
       return;
     }
-
     if (amount > eligible) {
       msg.textContent = "Amount exceeds eligible limit.";
       return;
     }
-  }
-
-  // Calculate fee and credited amount only for Flexi
-  let finalCredited = amount;
-  let feePercentage = 0;
-
-  if (tag === "Flexi Loan Fund") {
-    feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
-    finalCredited = amount - (amount * feePercentage);
-  } else {
-    tenure = null; // Let HR/Manager decide later
   }
 
   const now = new Date();
@@ -464,13 +459,12 @@ async function applyForLoan() {
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const yy = String(now.getFullYear()).slice(-2);
   const randomNumber = Math.floor(100000 + Math.random() * 900000);
-
   const customLoanId = `VRIDHI_${dd}${mm}${yy}_${randomNumber}`;
 
   await db.collection("loans").doc(customLoanId).set({
     user: currentUser.email,
     amount,
-    tenure, // May be null for non-Flexi
+    tenure: tag === "Flexi Loan Fund" ? parseInt(tenure) : null,
     tag,
     status: "pending",
     finalCredited,
@@ -479,7 +473,6 @@ async function applyForLoan() {
 
   msg.textContent = `Loan application submitted with ID: ${customLoanId}`;
 
-  // Reset form
   document.getElementById("loanAmount").value = "";
   document.getElementById("loanTenure").selectedIndex = 0;
   document.getElementById("loanTag").selectedIndex = 0;
@@ -591,113 +584,121 @@ async function fetchLoanHistory() {
       });
     }
 
-    function renderLoanHistory(data) {
-      const container = document.getElementById("loanHistoryCards");
-      container.innerHTML = "";
+function renderLoanHistory(data) {
+  const container = document.getElementById("loanHistoryCards");
+  container.innerHTML = "";
 
-      const start = (currentPage - 1) * rowsPerPage;
-      const paginated = data.slice(start, start + rowsPerPage);
+  const start = (currentPage - 1) * rowsPerPage;
+  const paginated = data.slice(start, start + rowsPerPage);
 
-      paginated.forEach(item => {
-        const approvalDate = item.loanProcessedDate
-          ? new Date(item.loanProcessedDate.seconds * 1000)
-          : null;
+  paginated.forEach(item => {
+    const approvalDate = item.loanProcessedDate
+      ? new Date(item.loanProcessedDate.seconds * 1000)
+      : null;
 
-        const dueDate = approvalDate
-          ? new Date(approvalDate.getTime())
-          : new Date(item.timestamp);
-        dueDate.setDate(dueDate.getDate() + item.tenure);
+    const dueDate = approvalDate
+      ? new Date(approvalDate.getTime())
+      : new Date(item.timestamp);
+    dueDate.setDate(dueDate.getDate() + item.tenure);
 
-        let fine = 0;
-        const now = new Date();
+    let fine = 0;
+    const now = new Date();
 
-        if ((item.status === "approved" || item.status === "repaid") && dueDate < now) {
-          const endDate = item.status === "repaid"
-            ? new Date(item.repaidDate?.seconds * 1000 || now)
-            : now;
-          const overdueDays = Math.max(0, Math.floor((endDate - dueDate) / (1000 * 60 * 60 * 24)));
-          fine = overdueDays * 50;
-        }
+    if ((item.status === "approved" || item.status === "repaid") && dueDate < now) {
+      const endDate = item.status === "repaid"
+        ? new Date(item.repaidDate?.seconds * 1000 || now)
+        : now;
+      const overdueDays = Math.max(0, Math.floor((endDate - dueDate) / (1000 * 60 * 60 * 24)));
+      fine = overdueDays * 50;
+    }
 
-        const totalRepay = item.totalRepay || (item.amount + fine);
-        const showActionButton = item.status === "approved";
-        const isRepaid = item.status === "repaid";
-        const isUnderReview = item.status === "underReview";
+    const totalRepay = item.totalRepay || (item.amount + fine);
+    const showActionButton = item.status === "approved" && item.status !== "underReview";
+    const isRepaid = item.status === "repaid";
+    const isUnderReview = item.status === "underReview";
 
-        const card = document.createElement("div");
-        card.className = "loan-card";
+    const card = document.createElement("div");
+    card.className = "loan-card";
     let sealClass = "";
-let sealText = "";
+    let sealText = "";
 
-if (item.status === "approved") {
-  sealClass = "seal-approved";
-  sealText = "Approved";
-} else if (item.status === "repaid") {
-  sealClass = "seal-repaid";
-  sealText = "Repaid";
-} else if (item.status === "rejected") {
-  sealClass = "seal-rejected";
-  sealText = "Rejected";
-} else if (item.status === "pending" || item.status === "underReview") {
-  sealClass = "seal-pending";
-  sealText = item.status === "pending" ? "Pending" : "Under Review";
+    if (item.status === "approved") {
+      sealClass = "seal-approved";
+      sealText = "Approved";
+    } else if (item.status === "repaid") {
+      sealClass = "seal-repaid";
+      sealText = "Repaid";
+    } else if (item.status === "rejected") {
+      sealClass = "seal-rejected";
+      sealText = "Rejected";
+    } else if (item.status === "pending" || item.status === "underReview") {
+      sealClass = "seal-pending";
+      sealText = item.status === "pending" ? "Pending" : "Under Review";
+    }
+
+    card.innerHTML = `
+      <div class="loan-seal ${sealClass}">${sealText}</div>
+      <h3>Loan ID: ${item.id}</h3>
+      <p><strong>Amount:</strong> ₹${item.amount.toFixed(2)}</p>
+      <p><strong>Tag:</strong> ${item.tag || 'N/A'}</p>
+      <p><strong>Status:</strong> ${item.status}</p>
+      <p><strong>Request Date:</strong> ${item.requestDate}</p>
+      <p><strong>Tenure:</strong> ${item.tenure} days</p>
+      <p><strong>Approved Date:</strong> ${approvalDate ? approvalDate.toLocaleString("en-IN") : "N/A"}</p>
+      <p><strong>Due Date:</strong> ${dueDate.toLocaleString("en-IN")}</p>
+      <p><strong>Overdue Fine:</strong> ₹${fine.toFixed(2)}</p>
+      <p><strong>Total to Repay:</strong> ₹${totalRepay.toFixed(2)}</p>
+      ${showActionButton
+        ? `<button onclick="requestRepayment('${item.id}', ${item.amount}, ${fine})">Repay</button>`
+        : isRepaid
+          ? `<span style="color: green;">Repaid</span>`
+          : isUnderReview
+            ? `<span style="color: orange;">Under Review</span>`
+            : ""}
+    `;
+
+    container.appendChild(card);
+  });
+}
+	
+ 
+async function requestRepayment(loanId, amount, fine) {
+  if (!confirm(`Confirm repayment request for ₹${amount + fine}?`)) return;
+
+  const now = new Date();
+
+  // Update loan status to "underReview" in Firestore
+  await db.collection("loans").doc(loanId).update({
+    status: "underReview",
+    repaymentRequestDate: now.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric", month: "long", day: "numeric",
+      hour: "numeric", minute: "numeric", second: "numeric",
+      hour12: true, timeZoneName: "short"
+    })
+  });
+
+  // Add repayment request record to Firestore (this keeps track of repayment requests)
+  await db.collection("repaymentRequests").add({
+    loanId,
+    user: currentUser.email,
+    amountPaid: amount,
+    finePaid: fine,
+    totalPaid: amount + fine,
+    status: "pending", // This will be processed by a manager
+    requestDate: now.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric", month: "long", day: "numeric",
+      hour: "numeric", minute: "numeric", second: "numeric",
+      hour12: true, timeZoneName: "short"
+    })
+  });
+
+  // Reload loan history and update the UI
+  loadLoanHistory();
+  alert("Repayment request sent to manager for confirmation.");
 }
 
-card.innerHTML = `
-  <div class="loan-seal ${sealClass}">${sealText}</div>
-  <h3>Loan ID: ${item.id}</h3>
-  <p><strong>Amount:</strong> ₹${item.amount.toFixed(2)}</p>
-<p><strong>Tag:</strong> ${item.tag || 'N/A'}</p>
-
-  <p><strong>Status:</strong> ${item.status}</p>
-  <p><strong>Request Date:</strong> ${item.requestDate}</p>
-  <p><strong>Tenure:</strong> ${item.tenure} days</p>
-  <p><strong>Approved Date:</strong> ${approvalDate ? approvalDate.toLocaleString("en-IN") : "N/A"}</p>
-  <p><strong>Due Date:</strong> ${dueDate.toLocaleString("en-IN")}</p>
-  <p><strong>Overdue Fine:</strong> ₹${fine.toFixed(2)}</p>
-  <p><strong>Total to Repay:</strong> ₹${totalRepay.toFixed(2)}</p>
-  ${showActionButton
-    ? `<button onclick="requestRepayment('${item.id}', ${item.amount}, ${fine})">Repay</button>`
-    : isRepaid
-      ? `<span style="color: green;">Repaid</span>`
-      : isUnderReview
-        ? `<span style="color: orange;">Under Review</span>`
-        : ""}
-`;
-
-        container.appendChild(card);
-      });
-    }
-
- 
-    async function requestRepayment(loanId, amount, fine) {
-      if (!confirm(`Confirm repayment request for ₹${amount + fine}?`)) return;
-
-      const now = new Date();
-
-      await db.collection("repaymentRequests").add({
-        loanId,
-        user: currentUser.email,
-        amountPaid: amount,
-        finePaid: fine,
-        totalPaid: amount + fine,
-        status: "pending",
-        requestDate: now.toLocaleString("en-IN", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric", month: "long", day: "numeric",
-          hour: "numeric", minute: "numeric", second: "numeric",
-          hour12: true, timeZoneName: "short"
-        })
-      });
-
-      const loan = loanDataArray.find(l => l.id === loanId);
-      if (loan) {
-        loan.status = "underReview";
-      }
-
-      loadLoanHistory();
-      alert("Repayment request sent to manager for confirmation.");
-    }
   firebase.auth().onAuthStateChanged(async (user) => {
   if (user) {
     const email = user.email;
