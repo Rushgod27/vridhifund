@@ -258,28 +258,41 @@
 
 <div class="card" id="loanApplicationSection">
   <h2>Apply for Loan</h2>
+
+  <!-- User Email (readonly) -->
   <input type="text" id="loggedInUsername" readonly />
+
+  <!-- Amount Input -->
   <input type="number" id="loanAmount" placeholder="Enter amount" oninput="updateFinalAmount()" />
 
-  <!-- 🆕 Loan Tag Dropdown -->
-  <select id="loanTag">
+  <!-- Loan Tag Dropdown -->
+  <select id="loanTag" onchange="handleTagChange(); updateFinalAmount();">
     <option value="" disabled selected>Select Loan Tag</option>
     <option value="Flexi Loan Fund">Flexi Loan Fund</option>
     <option value="Emergency Assistance Fund">Emergency Assistance Fund</option>
     <option value="Family Support Fund">Family Support Fund</option>
+    <option value="Operational Expenses">Operational Expenses</option>
+    <option value="Loyalty Bonus Pool">Loyalty Bonus Pool</option>
   </select>
 
-  <select id="loanTenure" onchange="updateFinalAmount()">
-    <option value="15">15 days</option>
-    <option value="30">30 days</option>
-    <option value="45">45 days</option>
-    <option value="60">60 days</option>
-  </select>
+  <!-- Flexi Loan Tenure Options (Only visible for Flexi tag) -->
+  <div id="tenureFields" style="display: none;">
+    <select id="loanTenure" onchange="updateFinalAmount()">
+      <option value="15">15 days</option>
+      <option value="30">30 days</option>
+      <option value="45">45 days</option>
+      <option value="60">60 days</option>
+    </select>
+  </div>
 
+  <!-- Submit Button -->
   <button onclick="applyForLoan()">Apply</button>
+
+  <!-- Status Messages -->
   <p id="loanApplyMessage"></p>
   <p id="finalAmountMessage" style="color: #4a148c; margin-top: 10px;"></p>
 </div>
+
 
   <div class="card">
 <div id="loader" style="text-align:center; display:none; font-size: 1rem; color: #555;">Loading data...</div>
@@ -333,46 +346,59 @@
       document.getElementById('loggedInUsername').value = user.email;
       await loadDashboard();
     });
+async function loadDashboard() {
+  try {
+    const usersSnap = await db.collection("users").get();
+    let totalUserBalance = 0;
 
- async function loadDashboard() {
-  const usersSnap = await db.collection("users").get();
-  let totalUserBalance = 0;
+    usersSnap.forEach(doc => {
+      totalUserBalance += doc.data().balance || 0;
+    });
 
-  usersSnap.forEach(doc => {
-    totalUserBalance += doc.data().balance || 0;
-  });
+    const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
+    let approvedDistributableAmount = 0;
 
-  const approvedLoansSnap = await db.collection("loans").where("status", "==", "approved").get();
-  let approvedDistributableAmount = 0;
+    approvedLoansSnap.forEach(doc => {
+      approvedDistributableAmount += doc.data().finalCredited || 0;
+    });
 
-  approvedLoansSnap.forEach(doc => {
-    approvedDistributableAmount += doc.data().finalCredited || 0;
-  });
+    const recoveriesSnap = await db.collection("recoveries").get();
+    let recovered = 0;
 
-  const recoveriesSnap = await db.collection("recoveries").get();
-  let recovered = 0;
+    recoveriesSnap.forEach(doc => {
+      recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
+    });
 
-  recoveriesSnap.forEach(doc => {
-    recovered += (doc.data().amount || 0) + (doc.data().fine || 0);
-  });
+    // Fetch Flexi Loan Fund from the 'funds' collection and use the 'balance' field
+    const fundsSnap = await db.collection("funds").doc("flexiLoanFund").get();
+    let flexiLoanFund = 0;
 
-  const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
-  document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
+    if (fundsSnap.exists) {
+      flexiLoanFund = fundsSnap.data().balance || 0;  // Use 'balance' field here
+      console.log("Flexi Loan Fund Balance:", flexiLoanFund);  // Log the balance value
+    } else {
+      console.log("No document found for flexiLoanFund.");  // Log if document doesn't exist
+    }
 
-  const flexiLoanFund = totalFunds * 0.75;
-  const maxLoanEligibility = flexiLoanFund * 0.40;
+    const totalFunds = totalUserBalance + recovered - approvedDistributableAmount;
+    document.getElementById("totalFunds").textContent = totalFunds.toFixed(2);
 
-  document.getElementById("eligibleAmount").textContent = maxLoanEligibility.toFixed(2);
+    const maxLoanEligibility = flexiLoanFund * 0.40;
+    console.log("Max Loan Eligibility:", maxLoanEligibility);  // Log the calculated loan eligibility
 
-   // 🔁 Real-time user balance update
-  db.collection("users").doc(currentUser.uid).onSnapshot(doc => {
-    const userBalance = doc.exists ? doc.data().balance || 0 : 0;
-    document.getElementById("userBalance").textContent = userBalance.toFixed(2);
-  });
+    document.getElementById("eligibleAmount").textContent = maxLoanEligibility.toFixed(2);
 
-  fetchLoanHistory(); // Triggers loan listener
+    // 🔁 Real-time user balance update
+    db.collection("users").doc(currentUser.uid).onSnapshot(doc => {
+      const userBalance = doc.exists ? doc.data().balance || 0 : 0;
+      document.getElementById("userBalance").textContent = userBalance.toFixed(2);
+    });
+
+    fetchLoanHistory(); // Triggers loan listener
+  } catch (error) {
+    console.error("Error loading dashboard data:", error);
+  }
 }
-
 
 
 async function applyForLoan() {
@@ -388,12 +414,12 @@ async function applyForLoan() {
   }
 
   const amount = parseFloat(document.getElementById("loanAmount").value);
-  const tenure = parseInt(document.getElementById("loanTenure").value);
-  const tag = document.getElementById("loanTag").value; // 🆕 Get tag value
+  let tenure = parseInt(document.getElementById("loanTenure").value); // May not be used
+  const tag = document.getElementById("loanTag").value;
   const eligible = parseFloat(document.getElementById("eligibleAmount").textContent);
 
   if (!tag) {
-    msg.textContent = "Please select a loan tag."; // 🆕 Validate tag
+    msg.textContent = "Please select a loan tag.";
     return;
   }
 
@@ -402,18 +428,29 @@ async function applyForLoan() {
     return;
   }
 
-  if (amount < 3000) {
-    msg.textContent = "Minimum loan amount is ₹3000.";
-    return;
+  // Validation for Flexi Loan Fund
+  if (tag === "Flexi Loan Fund") {
+    if (amount < 3000) {
+      msg.textContent = "Minimum loan amount for Flexi Loan Fund is ₹3000.";
+      return;
+    }
+
+    if (amount > eligible) {
+      msg.textContent = "Amount exceeds eligible limit.";
+      return;
+    }
   }
 
-  if (amount > eligible) {
-    msg.textContent = `Amount exceeds eligible limit.`;
-    return;
-  }
+  // Calculate fee and credited amount only for Flexi
+  let finalCredited = amount;
+  let feePercentage = 0;
 
-  const feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
-  const finalCredited = amount - (amount * feePercentage);
+  if (tag === "Flexi Loan Fund") {
+    feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
+    finalCredited = amount - (amount * feePercentage);
+  } else {
+    tenure = null; // Let HR/Manager decide later
+  }
 
   const now = new Date();
   const requestDate = now.toLocaleString("en-IN", {
@@ -433,8 +470,8 @@ async function applyForLoan() {
   await db.collection("loans").doc(customLoanId).set({
     user: currentUser.email,
     amount,
-    tenure,
-    tag, // 🆕 Save tag to Firestore
+    tenure, // May be null for non-Flexi
+    tag,
     status: "pending",
     finalCredited,
     requestDate
@@ -442,28 +479,36 @@ async function applyForLoan() {
 
   msg.textContent = `Loan application submitted with ID: ${customLoanId}`;
 
+  // Reset form
   document.getElementById("loanAmount").value = "";
   document.getElementById("loanTenure").selectedIndex = 0;
-  document.getElementById("loanTag").selectedIndex = 0; // 🆕 Reset tag dropdown
+  document.getElementById("loanTag").selectedIndex = 0;
   updateFinalAmount();
 }
 
-    function updateFinalAmount() {
-      const amount = parseFloat(document.getElementById("loanAmount").value);
-      const tenure = parseInt(document.getElementById("loanTenure").value);
-      const msg = document.getElementById("finalAmountMessage");
+  function updateFinalAmount() {
+  const amount = parseFloat(document.getElementById("loanAmount").value);
+  const tenure = parseInt(document.getElementById("loanTenure").value);
+  const tag = document.getElementById("loanTag").value;
+  const msg = document.getElementById("finalAmountMessage");
 
-      if (!amount || amount <= 0 || isNaN(tenure)) {
-        msg.textContent = "";
-        return;
-      }
+  if (!amount || amount <= 0) {
+    msg.textContent = "";
+    return;
+  }
 
-      const feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
-      const fee = amount * feePercentage;
-      const finalAmount = amount - fee;
+  if (tag === "Flexi Loan Fund" && !isNaN(tenure)) {
+    const feePercentage = {15: 0.01, 30: 0.02, 45: 0.03, 60: 0.04}[tenure];
+    const fee = amount * feePercentage;
+    const finalAmount = amount - fee;
+    msg.textContent = `Tenure: ${tenure} days. Fee: ₹${fee.toFixed(2)} (${(feePercentage * 100)}%). Final credited amount: ₹${finalAmount.toFixed(2)}.`;
+  } else if (tag && tag !== "Flexi Loan Fund") {
+    msg.textContent = `Tenure: To be decided by Manager/HR. No fee applicable. Final credited amount: ₹${amount.toFixed(2)}.`;
+  } else {
+    msg.textContent = "";
+  }
+}
 
-      msg.textContent = `Tenure: ${tenure} days. Fee: ₹${fee.toFixed(2)} (${(feePercentage * 100)}%). Final credited amount: ₹${finalAmount.toFixed(2)}.`;
-    }
 async function fetchLoanHistory() {
   document.getElementById("loader").style.display = "block";
 
@@ -475,19 +520,51 @@ async function fetchLoanHistory() {
         timestamp: new Date(doc.data().approvalTimestamp?.seconds * 1000 || Date.now())
       }));
 
-      // Show or hide loan application section
-      const hasActiveLoan = loanDataArray.some(loan =>
-        loan.status !== "repaid" && loan.status !== "rejected"
+      // ✅ Check for active Flexi Loan Fund loan
+      const hasActiveFlexiLoan = loanDataArray.some(
+        loan => loan.tag === "Flexi Loan Fund" &&
+                loan.status !== "repaid" &&
+                loan.status !== "rejected"
       );
 
-      const loanAppSection = document.getElementById("loanApplicationSection");
-      if (loanAppSection) {
-        loanAppSection.style.display = hasActiveLoan ? "none" : "block";
+      // ✅ Disable Flexi Loan Option
+      const flexiOption = document.getElementById("flexiOption");
+      if (flexiOption) {
+        flexiOption.disabled = hasActiveFlexiLoan;
+        flexiOption.textContent = hasActiveFlexiLoan
+          ? "Flexi Loan Fund (Unavailable)"
+          : "Flexi Loan Fund";
+
+        flexiOption.title = hasActiveFlexiLoan
+          ? "You already have a Flexi Loan that is active or pending. Repay or wait for a decision to reapply."
+          : "";
       }
 
-      loadLoanHistory();
-      document.getElementById("loader").style.display = "none";
+      // ✅ Hide loan input fields if Flexi is selected but unavailable
+      const loanTagSelect = document.getElementById("loanTag");
+      const loanInputFields = document.getElementById("loanInputFields");
 
+      if (loanTagSelect && loanInputFields) {
+        loanTagSelect.addEventListener("change", () => {
+          const selected = loanTagSelect.value;
+          const isFlexi = selected === "Flexi Loan Fund";
+
+          if (isFlexi && hasActiveFlexiLoan) {
+            loanInputFields.style.display = "none";
+          } else {
+            loanInputFields.style.display = "block";
+          }
+        });
+
+        // On initial load, if Flexi is selected and blocked, hide inputs
+        const initiallySelected = loanTagSelect.value;
+        if (initiallySelected === "Flexi Loan Fund" && hasActiveFlexiLoan) {
+          loanInputFields.style.display = "none";
+        }
+      }
+
+      loadLoanHistory();  // Render history
+      document.getElementById("loader").style.display = "none";
     });
 }
     function loadLoanHistory() {
@@ -590,9 +667,6 @@ card.innerHTML = `
 
         container.appendChild(card);
       });
-
-      document.getElementById("paginationInfo").textContent =
-        `Page ${currentPage} of ${Math.ceil(data.length / rowsPerPage)}`;
     }
 
  
@@ -633,50 +707,71 @@ card.innerHTML = `
     document.getElementById('welcomeMessage').innerText = 'Welcome, Guest';
   }
 });
-  const WEIGHTS = {
-  repaidOnTime: 50,
-  earlyRepaymentBonus: 30,
+const WEIGHTS = {
+  repaidOnTime: 30,
+  earlyRepaymentBonus: 50,
   repaidLate: -25,
   activeLoan: 10,
-  rejectedLoan: -10,
-  repaymentPending: -5
+  rejectedLoan: -10
 };
-function calculateVPoints() {
-  let points = 0;
 
-  loanDataArray.forEach(loan => {
-    const status = loan.status;
-    const approvedDate = loan.loanProcessedDate
-      ? new Date(loan.loanProcessedDate.seconds * 1000)
-      : null;
-    const repaidDate = loan.repaidDate
-      ? new Date(loan.repaidDate.seconds * 1000)
-      : null;
-    const dueDate = approvedDate ? new Date(approvedDate) : null;
-    if (dueDate && loan.tenure) dueDate.setDate(dueDate.getDate() + loan.tenure);
-
-    if (status === "repaid") {
-      if (repaidDate && dueDate) {
-        if (repaidDate < dueDate) {
-          points += WEIGHTS.earlyRepaymentBonus;
-        } else if (repaidDate.getTime() === dueDate.getTime()) {
-          points += WEIGHTS.repaidOnTime;
-        } else {
-          points += WEIGHTS.repaidLate;
-        }
-      }
-    } else if (status === "approved") {
-      points += WEIGHTS.activeLoan;
-    } else if (status === "rejected") {
-      points += WEIGHTS.rejectedLoan;
-    } else if (status === "underReview") {
-      points += WEIGHTS.repaymentPending;
+async function calculateAndStoreVPoints(loanDataArray) {
+  try {
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      console.error("User not authenticated.");
+      return;
     }
-  });
 
-  document.getElementById("vPointsDisplay").textContent = `${points} V-Points`;
+    const userId = user.uid;
+    let points = 0;
+
+    loanDataArray.forEach(loan => {
+      const status = loan.status;
+      const approvedDate = loan.loanProcessedDate
+        ? new Date(loan.loanProcessedDate.seconds * 1000)
+        : null;
+      const repaidDate = loan.repaidDate
+        ? new Date(loan.repaidDate.seconds * 1000)
+        : null;
+      const dueDate = approvedDate && loan.tenure ? new Date(approvedDate) : null;
+
+      if (dueDate && loan.tenure) dueDate.setDate(dueDate.getDate() + loan.tenure);
+
+      if (status === "repaid") {
+        if (repaidDate && dueDate) {
+          if (repaidDate < dueDate) {
+            points += WEIGHTS.earlyRepaymentBonus;
+          } else if (repaidDate.getTime() === dueDate.getTime()) {
+            points += WEIGHTS.repaidOnTime;
+          } else {
+            points += WEIGHTS.repaidLate;
+          }
+        }
+      } else if (status === "approved") {
+        points += WEIGHTS.activeLoan;
+      } else if (status === "rejected") {
+        points += WEIGHTS.rejectedLoan;
+      }
+    });
+
+    // Store in Firestore
+    await db.collection("users").doc(userId).set({ vPoints: points }, { merge: true });
+
+    // Update UI
+    document.getElementById("vPointsDisplay").textContent = `${points} V-Points`;
+    console.log("V-Points saved to Firestore:", points);
+  } catch (error) {
+    console.error("Error calculating or saving V-Points:", error);
+  }
 }
 
+
+function handleTagChange() {
+  const tag = document.getElementById("loanTag").value;
+  const tenureFields = document.getElementById("tenureFields");
+  tenureFields.style.display = (tag === "Flexi Loan Fund") ? "block" : "none";
+}
 
 </script>
 <footer class="company-footer">
