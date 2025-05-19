@@ -712,11 +712,20 @@ async function submitRecovery() {
     return;
   }
 
-  const manualInput = parseFloat(document.getElementById('manualRecoveryAmount').value);
-  const recoveryAmount = isNaN(manualInput) ? currentRepaymentRequest.totalPaid : manualInput;
-
   try {
-    // Step 1: Check if recovery already exists
+    const manualInput = parseFloat(document.getElementById('manualRecoveryAmount').value);
+    const recoveryAmount = isNaN(manualInput)
+      ? (currentRepaymentRequest.totalPaid || 0)
+      : manualInput;
+
+    if (recoveryAmount <= 0) {
+      alert("Invalid recovery amount.");
+      return;
+    }
+
+    console.log("Submitting recovery for:", currentRepaymentRequest.loanId);
+    console.log("Recovery Amount:", recoveryAmount);
+
     const existingRecoverySnapshot = await db.collection('recoveries')
       .where('loanId', '==', currentRepaymentRequest.loanId)
       .where('source', '==', 'repaymentRequest')
@@ -724,11 +733,50 @@ async function submitRecovery() {
       .get();
 
     if (!existingRecoverySnapshot.empty) {
-      alert("Recovery for this loan has already been recorded.");
+      alert("Recovery already recorded for this loan.");
       return;
     }
 
-    // Step 2: Add new recovery if it doesn't exist
+    const loanDoc = await db.collection('loans').doc(currentRepaymentRequest.loanId).get();
+    if (!loanDoc.exists) {
+      alert("Loan document not found.");
+      return;
+    }
+
+    const loanData = loanDoc.data();
+    const rawTag = loanData.tag || '';
+    const tag = rawTag.toLowerCase().trim();
+
+    let fundDocId = '';
+    switch (tag) {
+      case 'flexi':
+      case 'flexi loan':
+      case 'flexi loan fund':
+        fundDocId = 'flexiLoanFund';
+        break;
+      case 'emergency':
+      case 'emergency assistance':
+      case 'emergency assistance fund':
+        fundDocId = 'emergencyFund';
+        break;
+      case 'family':
+      case 'family support':
+      case 'family support fund':
+        fundDocId = 'familySupportFund';
+        break;
+      default:
+        alert("Unknown or missing fund tag in loan.");
+        return;
+    }
+
+    const fundRef = db.collection('funds').doc(fundDocId);
+    const fundSnap = await fundRef.get();
+    const currentBalance = fundSnap.exists ? (fundSnap.data().balance || 0) : 0;
+
+    await fundRef.update({
+      balance: currentBalance + recoveryAmount
+    });
+
     await db.collection('recoveries').add({
       loanId: currentRepaymentRequest.loanId,
       user: currentRepaymentRequest.user,
@@ -738,17 +786,22 @@ async function submitRecovery() {
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    alert("Recovery recorded successfully.");
+    alert("✅ Recovery recorded and fund credited.");
+
+    // Reset form fields and state
     document.getElementById('recoveryLoanIdInput').value = '';
     document.getElementById('manualRecoveryAmount').value = '';
     currentRepaymentRequest = null;
 
-    await updateVridhiFunds();
+    // Update UI
+    listenToFunds();
+
   } catch (error) {
-    console.error("Error submitting recovery:", error);
-    alert("Failed to submit recovery.");
+    console.error("Error in submitRecovery():", error);
+    alert("❌ Failed to record recovery. Please check console for details.");
   }
 }
+
 firebase.auth().onAuthStateChanged(async (user) => {
   if (user) {
     const email = user.email;
