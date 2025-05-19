@@ -321,29 +321,43 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 let currentUserDoc = null;
 
-async function updateVridhiFunds() {
-  let totalBalance = 0, totalRecovered = 0, totalApprovedLoans = 0;
-  const users = await db.collection('users').get();
-  users.forEach(doc => totalBalance += doc.data().balance || 0);
+function listenToFunds() {
+  db.collection('funds').onSnapshot((snapshot) => {
+    let flexiLoanFundBalance = 0;
 
-  const recoveries = await db.collection('recoveries').get();
-  recoveries.forEach(doc => totalRecovered += (doc.data().amount || 0) + (doc.data().fine || 0));
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const id = doc.id;
 
-  const loans = await db.collection('loans').where('status', '==', 'approved').get();
-  loans.forEach(doc => totalApprovedLoans += doc.data().finalCredited || 0);
+      switch (id) {
+        case 'flexiLoanFund':
+          flexiLoanFundBalance = data.balance || 0;
+          document.getElementById('flexiLoanFund').innerText = flexiLoanFundBalance.toFixed(2);
+          document.getElementById('eligibleAmount').innerText = `₹${(flexiLoanFundBalance * 0.4).toFixed(2)}`;
+          break;
+        case 'emergencyFund':
+          document.getElementById('emergencyFund').innerText = (data.balance || 0).toFixed(2);
+          break;
+        case 'familySupportFund':
+          document.getElementById('familySupportFund').innerText = (data.balance || 0).toFixed(2);
+          break;
+        case 'operationalExpenses':
+          document.getElementById('operationalExpenses').innerText = (data.balance || 0).toFixed(2);
+          break;
+        case 'loyaltyBonus':
+          document.getElementById('loyaltyBonus').innerText = (data.balance || 0).toFixed(2);
+          break;
+      }
+    });
+  });
 
-  const total = totalBalance + totalRecovered - totalApprovedLoans;
-
-  document.getElementById('vridhiFunds').innerText = `₹${total.toFixed(2)}`;
-
-  const flexiLoanFund = total * 0.75;
-  document.getElementById('eligibleAmount').innerText = `₹${(flexiLoanFund * 0.4).toFixed(2)}`;
-
-  document.getElementById('flexiLoanFund').innerText = flexiLoanFund.toFixed(2);
-  document.getElementById('emergencyFund').innerText = (total * 0.10).toFixed(2);
-  document.getElementById('familySupportFund').innerText = (total * 0.05).toFixed(2);
-  document.getElementById('operationalExpenses').innerText = (total * 0.08).toFixed(2);
-  document.getElementById('loyaltyBonus').innerText = (total * 0.02).toFixed(2);
+  db.collection('users').onSnapshot(snapshot => {
+    let totalBalance = 0;
+    snapshot.forEach(doc => {
+      totalBalance += doc.data().balance || 0;
+    });
+    document.getElementById('vridhiFunds').innerText = `₹${totalBalance.toFixed(2)}`;
+  });
 }
 
 async function searchUser() {
@@ -378,57 +392,167 @@ async function addToBalance() {
   if (!currentUserDoc) return alert("Search for a user first");
   const amount = parseFloat(document.getElementById('amountInput').value);
   if (isNaN(amount) || amount <= 0) return alert("Enter a valid amount");
+
   const newBalance = (currentUserDoc.balance || 0) + amount;
+
+  // 1. Update user balance
   await db.collection('users').doc(currentUserDoc.id).update({ balance: newBalance });
-  alert("Amount added!");
+
+  // 2. Distribute to sub-funds
+  const allocations = {
+    flexiLoanFund: 0.75,
+    emergencyFund: 0.10,
+    familySupportFund: 0.05,
+    operationalExpenses: 0.08,
+    loyaltyBonus: 0.02
+  };
+
+  const fundUpdates = Object.entries(allocations).map(async ([fundId, percentage]) => {
+    const fundRef = db.collection('funds').doc(fundId);
+    const fundSnap = await fundRef.get();
+    const currentFundBalance = fundSnap.exists ? (fundSnap.data().balance || 0) : 0;
+    const newFundBalance = currentFundBalance + amount * percentage;
+    return fundRef.set({ balance: newFundBalance }, { merge: true });
+  });
+
+  await Promise.all(fundUpdates);
+
+  alert("Amount added and distributed to funds.");
   searchUser();
   updateVridhiFunds();
 }
 
 async function removeFromBalance() {
   if (!currentUserDoc) return alert("Search for a user first");
+
   const amount = parseFloat(document.getElementById('amountInput').value);
   if (isNaN(amount) || amount <= 0) return alert("Enter a valid amount");
+
   const currentBalance = currentUserDoc.balance || 0;
   if (amount > currentBalance) return alert("Insufficient balance");
+
   const newBalance = currentBalance - amount;
+
+  // Update user's balance
   await db.collection('users').doc(currentUserDoc.id).update({ balance: newBalance });
-  alert("Amount removed!");
+
+  // Proportional deduction from sub-funds
+  const fundsRef = db.collection('funds');
+  const fundSnap = await fundsRef.get();
+
+  const proportions = {
+    flexiLoanFund: 0.75,
+    emergencyFund: 0.10,
+    familySupportFund: 0.05,
+    operationalExpenses: 0.08,
+    loyaltyBonus: 0.02
+  };
+
+  for (const doc of fundSnap.docs) {
+    const fundId = doc.id;
+    const currentFundBalance = doc.data().balance || 0;
+
+    if (proportions[fundId] !== undefined) {
+      const deduction = amount * proportions[fundId];
+      await fundsRef.doc(fundId).update({
+        balance: Math.max(currentFundBalance - deduction, 0)
+      });
+    }
+  }
+
+  alert("Amount removed and funds adjusted!");
   searchUser();
   updateVridhiFunds();
 }
-async function loadPendingLoans() {
-  const container = document.getElementById('pendingRequests');
-  container.innerHTML = '';
-  const snapshot = await db.collection('loans').where('status', '==', 'pending').get();
-  snapshot.forEach(doc => {
-    const loan = doc.data();
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <p><strong>User:</strong> ${loan.user || 'N/A'}</p>
-<p><strong>Tag:</strong> <span class="tag-badge">${loan.tag || 'N/A'}</span></p>
-      <p><strong>Amount:</strong> ₹${loan.amount}</p>
-      <p><strong>Final Credit:</strong> ₹${loan.finalCredited}</p>
-      <p><strong>Request Date:</strong> ${loan.requestDate || '-'}</p>
-      <p><strong>Tenure:</strong> ${loan.tenure || '-'}</p>
-      <div class="card-actions">
-        <button onclick="updateLoanStatus('${doc.id}', 'approved')">Approve</button>
-        <button onclick="updateLoanStatus('${doc.id}', 'rejected')">Reject</button>
-      </div>
-    `;
-    container.appendChild(card);
-  });
+function listenToPendingLoans() {
+  db.collection('loans')
+    .where('status', '==', 'pending')
+    .onSnapshot(snapshot => {
+      const container = document.getElementById('pendingRequests');
+      container.innerHTML = '';
+      snapshot.forEach(doc => {
+        const loan = doc.data();
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <p><strong>User:</strong> ${loan.user || 'N/A'}</p>
+          <p><strong>Tag:</strong> <span class="tag-badge">${loan.tag || 'N/A'}</span></p>
+          <p><strong>Amount:</strong> ₹${loan.amount}</p>
+          <p><strong>Final Credit:</strong> ₹${loan.finalCredited}</p>
+          <p><strong>Request Date:</strong> ${loan.requestDate || '-'}</p>
+          <p><strong>Tenure:</strong> ${loan.tenure || '-'}</p>
+          <div class="card-actions">
+            <button onclick="updateLoanStatus('${doc.id}', 'approved')">Approve</button>
+            <button onclick="updateLoanStatus('${doc.id}', 'rejected')">Reject</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    });
 }
 
 async function updateLoanStatus(loanId, newStatus) {
   const confirmed = confirm(`Are you sure you want to ${newStatus} this loan?`);
   if (!confirmed) return;
+
+  const loanDoc = await db.collection('loans').doc(loanId).get();
+  const loan = loanDoc.data();
+  const amountToDeduct = loan.finalCredited || loan.amount || 0;
+  const tag = (loan.tag || '').toLowerCase().trim();
+
+  if (newStatus === 'approved') {
+    let fundDocId = '';
+
+    // Map loan tags to fund document IDs
+    switch (tag) {
+      case 'flexi':
+      case 'flexi loan':
+      case 'flexi loan fund':
+        fundDocId = 'flexiLoanFund';
+        break;
+      case 'emergency':
+      case 'emergency assistance':
+      case 'emergency assistance fund':
+        fundDocId = 'emergencyFund';
+        break;
+      case 'family':
+      case 'family support':
+      case 'family support fund':
+        fundDocId = 'familySupportFund';
+        break;
+      default:
+        alert("Unknown fund tag. Cannot deduct.");
+        return;
+    }
+
+    const fundRef = db.collection('funds').doc(fundDocId);
+    const fundSnap = await fundRef.get();
+    if (!fundSnap.exists) {
+      alert(`Fund "${fundDocId}" not found.`);
+      return;
+    }
+
+    const fundData = fundSnap.data();
+    const currentBalance = fundData.balance || 0;
+
+    if (currentBalance < amountToDeduct) {
+      alert(`Insufficient funds in ${fundDocId}.`);
+      return;
+    }
+
+    // Deduct amount
+    await fundRef.update({
+      balance: currentBalance - amountToDeduct
+    });
+  }
+
+  // Update loan status
   await db.collection('loans').doc(loanId).update({
     status: newStatus,
     loanProcessedDate: firebase.firestore.FieldValue.serverTimestamp()
   });
-  alert(`Loan ${newStatus} and date recorded.`);
+
+  alert(`Loan ${newStatus} and fund updated.`);
   await updateVridhiFunds();
   await loadPendingLoans();
   await loadProcessedLoans();
@@ -477,27 +601,36 @@ document.getElementById('filterStatus').addEventListener('change', loadProcessed
 document.getElementById('filterUser').addEventListener('input', loadProcessedLoans);
 document.getElementById('filterAmount').addEventListener('input', loadProcessedLoans);
 
-async function loadRepaymentRequests() {
-  const container = document.querySelector('#repaymentRequests');
-  container.innerHTML = '';
-  const snapshot = await db.collection('repaymentRequests').where('status', '==', 'pending').get();
-  snapshot.forEach(doc => {
-    const request = doc.data();
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <p><strong>User:</strong> ${request.user || 'N/A'}</p>
-      <p><strong>Loan ID:</strong> ${request.loanId || '-'} 
-         <button onclick="copyToClipboard('${request.loanId}')">Copy</button>
-      </p>
-      <p><strong>Date:</strong> ${request.requestDate || '-'}</p>
-      <div class="card-actions">
-        <button onclick="approveRepaymentRequest('${doc.id}', '${request.loanId}')">Confirm</button>
-        <button onclick="rejectRepaymentRequest('${doc.id}')">Reject</button>
-      </div>
-    `;
-    container.appendChild(card);
+function listenToProcessedLoans() {
+  db.collection('loans').onSnapshot(() => {
+    loadProcessedLoans(); // This uses the current filters
   });
+}
+
+function listenToRepaymentRequests() {
+  db.collection('repaymentRequests')
+    .where('status', '==', 'pending')
+    .onSnapshot(snapshot => {
+      const container = document.getElementById('repaymentRequests');
+      container.innerHTML = '';
+      snapshot.forEach(doc => {
+        const request = doc.data();
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <p><strong>User:</strong> ${request.user || 'N/A'}</p>
+          <p><strong>Loan ID:</strong> ${request.loanId || '-'} 
+             <button onclick="copyToClipboard('${request.loanId}')">Copy</button>
+          </p>
+          <p><strong>Date:</strong> ${request.requestDate || '-'}</p>
+          <div class="card-actions">
+            <button onclick="approveRepaymentRequest('${doc.id}', '${request.loanId}')">Confirm</button>
+            <button onclick="rejectRepaymentRequest('${doc.id}')">Reject</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    });
 }
 
 async function approveRepaymentRequest(requestId, loanId) {
@@ -523,11 +656,11 @@ function copyToClipboard(text) {
   });
 }
 
-window.onload = async () => {
-  await updateVridhiFunds();
-  await loadProcessedLoans();
-  await loadPendingLoans();
-  await loadRepaymentRequests();
+window.onload = () => {
+  listenToFunds();
+  listenToPendingLoans();
+  listenToProcessedLoans();
+  listenToRepaymentRequests();
 };
 let currentLoanForRecovery = null;
 
@@ -626,6 +759,21 @@ firebase.auth().onAuthStateChanged(async (user) => {
   }
 });
 	
+async function initializeFunds() {
+  const funds = {
+    flexiLoanFund: 750000,
+    emergencyFund: 100000,
+    familySupportFund: 50000,
+    operationalExpenses: 80000,
+    loyaltyBonus: 20000
+  };
+
+  for (const [id, balance] of Object.entries(funds)) {
+    await db.collection('funds').doc(id).set({ balance });
+  }
+
+  alert("Funds initialized.");
+}
 
 </script>
 <footer class="company-footer">
