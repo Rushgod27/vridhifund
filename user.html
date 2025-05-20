@@ -555,24 +555,26 @@ async function fetchLoanHistory() {
           loanInputFields.style.display = "none";
         }
       }
-
-      loadLoanHistory();  // Render history
-      document.getElementById("loader").style.display = "none";
+document.getElementById("loader").style.display = "none";
+loadLoanHistory(); // Render after loanDataArray is populated
+calculateAndStoreVPoints(loanDataArray); // Update V-Points after full data is available
     });
 }
     function loadLoanHistory() {
-      const search = document.getElementById("loanSearch").value.toLowerCase();
-      const sort = document.getElementById("loanSort").value;
-      const sorted = sortLoans(loanDataArray, sort);
-      const filtered = sorted.filter(l =>
-        l.status.toLowerCase().includes(search) ||
-        l.amount.toString().includes(search) ||
-        l.requestDate?.toLowerCase().includes(search)
-      );
-      renderLoanHistory(filtered);
-  // ✅ Calculate points after rendering is complete
-  calculateVPoints();
-    }
+  const search = document.getElementById("loanSearch").value.toLowerCase();
+  const sort = document.getElementById("loanSort").value;
+  const sorted = sortLoans(loanDataArray, sort);
+  const filtered = sorted.filter(l =>
+    l.status.toLowerCase().includes(search) ||
+    l.amount.toString().includes(search) ||
+    l.requestDate?.toLowerCase().includes(search)
+  );
+  renderLoanHistory(filtered);
+
+  // ✅ Calculate and display V-Points
+//  calculateAndStoreVPoints(loanDataArray);
+}
+
 
     function sortLoans(data, sortBy) {
       return [...data].sort((a, b) => {
@@ -781,4 +783,3 @@ function handleTagChange() {
 
 </body>
 </html>
-
