@@ -251,6 +251,10 @@ td {
     <button onclick="fetchRecoveryAmount()">Fetch Amount</button>
 <input type="number" id="manualRecoveryAmount" placeholder="fetching total amount" readonly />
 
+<!-- Discount input, hidden by default -->
+<input type="number" id="discountAmountInput" placeholder="Enter discount (optional)" style="display: none;" />
+
+
     <div class="card-actions">
       <button onclick="submitRecovery()">Submit Recovery</button>
     </div>
@@ -668,6 +672,9 @@ let currentRepaymentRequest = null;
 
 async function fetchRecoveryAmount() {
   const loanId = document.getElementById('recoveryLoanIdInput').value.trim();
+  const discountInput = document.getElementById('discountAmountInput');
+  discountInput.style.display = 'none'; // Reset visibility
+
   if (!loanId) {
     alert("Please enter a Loan ID.");
     return;
@@ -680,7 +687,6 @@ async function fetchRecoveryAmount() {
       .get();
 
     if (snapshot.empty) {
-   
       document.getElementById('manualRecoveryAmount').value = '';
       currentRepaymentRequest = null;
       alert("No repayment request found for this Loan ID.");
@@ -698,10 +704,18 @@ async function fetchRecoveryAmount() {
       totalPaid: totalPaid
     };
 
-    
-    document.getElementById('manualRecoveryAmount').value = totalPaid.toFixed(2); // 👈 Autofill this
+    document.getElementById('manualRecoveryAmount').value = totalPaid.toFixed(2);
+
+    // Fetch loan tag and show discount input if eligible
+    const loanDoc = await db.collection('loans').doc(data.loanId).get();
+    if (loanDoc.exists) {
+      const tag = (loanDoc.data().tag || '').toLowerCase().trim();
+      if (tag.includes('emergency') || tag.includes('family')) {
+        discountInput.style.display = 'block';
+      }
+    }
+
   } catch (error) {
-   
     alert("Failed to fetch repayment request.");
   }
 }
@@ -714,17 +728,20 @@ async function submitRecovery() {
 
   try {
     const manualInput = parseFloat(document.getElementById('manualRecoveryAmount').value);
-    const recoveryAmount = isNaN(manualInput)
-      ? (currentRepaymentRequest.totalPaid || 0)
-      : manualInput;
+    const discountInput = parseFloat(document.getElementById('discountAmountInput').value) || 0;
+    const totalPaid = isNaN(manualInput) ? 0 : manualInput;
 
-    if (recoveryAmount <= 0) {
+    if (totalPaid <= 0) {
       alert("Invalid recovery amount.");
       return;
     }
 
-    console.log("Submitting recovery for:", currentRepaymentRequest.loanId);
-    console.log("Recovery Amount:", recoveryAmount);
+    if (discountInput < 0 || discountInput > totalPaid) {
+      alert("Discount must be between 0 and the recovery amount.");
+      return;
+    }
+
+    const recoveryAmount = totalPaid - discountInput;
 
     const existingRecoverySnapshot = await db.collection('recoveries')
       .where('loanId', '==', currentRepaymentRequest.loanId)
@@ -743,10 +760,7 @@ async function submitRecovery() {
       return;
     }
 
-    const loanData = loanDoc.data();
-    const rawTag = loanData.tag || '';
-    const tag = rawTag.toLowerCase().trim();
-
+    const tag = (loanDoc.data().tag || '').toLowerCase().trim();
     let fundDocId = '';
     switch (tag) {
       case 'flexi':
@@ -781,27 +795,28 @@ async function submitRecovery() {
       loanId: currentRepaymentRequest.loanId,
       user: currentRepaymentRequest.user,
       amount: recoveryAmount,
+      discount: discountInput,
       fine: 0,
       source: 'repaymentRequest',
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    alert("✅ Recovery recorded and fund credited.");
+    alert(`✅ Recovery of ₹${recoveryAmount.toFixed(2)} recorded. Discount: ₹${discountInput.toFixed(2)}`);
 
-    // Reset form fields and state
+    // Reset UI
     document.getElementById('recoveryLoanIdInput').value = '';
     document.getElementById('manualRecoveryAmount').value = '';
+    document.getElementById('discountAmountInput').value = '';
+    document.getElementById('discountAmountInput').style.display = 'none';
     currentRepaymentRequest = null;
 
-    // Update UI
     listenToFunds();
 
   } catch (error) {
-    console.error("Error in submitRecovery():", error);
-    alert("❌ Failed to record recovery. Please check console for details.");
+    console.error("submitRecovery error:", error);
+    alert("❌ Failed to record recovery. Check console.");
   }
 }
-
 firebase.auth().onAuthStateChanged(async (user) => {
   if (user) {
     const email = user.email;
